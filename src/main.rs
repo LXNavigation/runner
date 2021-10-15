@@ -1,21 +1,19 @@
-/* 
+/*
 This file is part of the Everdream Runner (https://gitlab.com/everdream/runner).
 Copyright (c) 2021 Kyoko.
- 
-This program is free software: you can redistribute it and/or modify  
-it under the terms of the GNU General Public License as published by  
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
 the Free Software Foundation, version 3.
 
-This program is distributed in the hope that it will be useful, but 
-WITHOUT ANY WARRANTY; without even the implied warranty of 
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details.
 
-You should have received a copy of the GNU General Public License 
+You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
-use clap::{crate_version, App, Arg};
 
 mod app_config;
 mod config;
@@ -24,11 +22,17 @@ mod monitor_stdout;
 mod run_command;
 mod runner;
 
+use clap::{crate_version, App, Arg};
+
+// main function
 fn main() {
     let config = parse_args();
     runner::run(config);
 }
 
+// parse arguments using clap
+//
+// runner takes one mandatory argument, path to a config file
 fn parse_args() -> String {
     let matches = App::new("Runner")
         .version(crate_version!())

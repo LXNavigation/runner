@@ -1,23 +1,26 @@
-/* 
+/*
 This file is part of the Everdream Runner (https://gitlab.com/everdream/runner).
 Copyright (c) 2021 Kyoko.
- 
-This program is free software: you can redistribute it and/or modify  
-it under the terms of the GNU General Public License as published by  
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
 the Free Software Foundation, version 3.
 
-This program is distributed in the hope that it will be useful, but 
-WITHOUT ANY WARRANTY; without even the implied warranty of 
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details.
 
-You should have received a copy of the GNU General Public License 
+You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 use crate::config::ConfigError;
 
+// default number of lines to store for stdout history
 const DEFAULT_HISTORY: u64 = 1000u64;
+
+// default mode for application if none specified
 const DEFAULT_MODE: AppMode = AppMode::RunUntilSuccess;
 
 // enum indicating whether app should be restarted
@@ -40,25 +43,36 @@ pub(crate) enum AppMode {
 }
 
 // single app configuration
+//
+// this struct holds all information needed to successfully run a process
 #[derive(Debug, Clone)]
 pub(crate) struct AppConfig {
-    pub(crate) path: String,
+    // path / command to execute
+    pub(crate) command: String,
+
+    // arguments to pass to command
     pub(crate) args: Vec<String>,
+
+    // number of lines to store for stdout
     pub(crate) hist: usize,
+
+    // mode to run application in
     pub(crate) mode: AppMode,
 }
 
 impl AppConfig {
+    // parses given app configuration, returning AppConfig on success, or error on failure
     pub(crate) fn parse_config(json: &serde_json::Value) -> Result<AppConfig, ConfigError> {
         Ok(AppConfig {
-            path: AppConfig::parse_path(json)?,
+            command: AppConfig::parse_command(json)?,
             args: AppConfig::parse_args(json)?,
             hist: AppConfig::parse_history(json)?,
             mode: AppConfig::parse_mode(json)?,
         })
     }
 
-    fn parse_path(json: &serde_json::Value) -> Result<String, ConfigError> {
+    // parses command part of configuration. This field must be present in configuration
+    fn parse_command(json: &serde_json::Value) -> Result<String, ConfigError> {
         let path = match json.get("path") {
             Some(cmd) => cmd.as_str(),
             None => {
@@ -71,12 +85,13 @@ impl AppConfig {
         match path {
             Some(path) => Ok(path.to_owned()),
             None => Err(ConfigError::BadAppConfig(
-                    "path".to_owned(),
-                    json.to_string(),
-                ))
+                "path".to_owned(),
+                json.to_string(),
+            )),
         }
     }
 
+    // parses command arguments. This field must be present but can be empty array
     fn parse_args(json: &serde_json::Value) -> Result<Vec<String>, ConfigError> {
         let args = match json.get("args") {
             Some(args) => args,
@@ -102,12 +117,13 @@ impl AppConfig {
                 }
             }
             None => Err(ConfigError::BadAppConfig(
-                    "args array".to_owned(),
-                    json.to_string(),
-                ))
+                "args array".to_owned(),
+                json.to_string(),
+            )),
         }
     }
 
+    // parses history (number of lines for stdout)
     fn parse_history(json: &serde_json::Value) -> Result<usize, ConfigError> {
         let mut history = DEFAULT_HISTORY;
         if let Some(value) = json.get("hist") {
@@ -126,6 +142,7 @@ impl AppConfig {
             .expect("Could not convert u64 to usize on this system"))
     }
 
+    // parses mode. Has 5 valid values, everything else should be reported as error
     fn parse_mode(json: &serde_json::Value) -> Result<AppMode, ConfigError> {
         let mode = match json.get("mode") {
             Some(mode) => mode.as_str(),

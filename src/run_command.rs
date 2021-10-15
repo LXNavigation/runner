@@ -1,34 +1,31 @@
-/* 
+/*
 This file is part of the Everdream Runner (https://gitlab.com/everdream/runner).
 Copyright (c) 2021 Kyoko.
- 
-This program is free software: you can redistribute it and/or modify  
-it under the terms of the GNU General Public License as published by  
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
 the Free Software Foundation, version 3.
 
-This program is distributed in the hope that it will be useful, but 
-WITHOUT ANY WARRANTY; without even the implied warranty of 
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details.
 
-You should have received a copy of the GNU General Public License 
+You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use crate::app_config::AppConfig;
-use crate::monitor_stdout::LogT;
 use async_std::task;
-use chrono::DateTime;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use std::path::Path;
-use subprocess::ExitStatus;
-use subprocess::Popen;
-use subprocess::PopenConfig;
-use subprocess::Redirection;
+use subprocess::{ExitStatus, Popen, PopenConfig, Redirection};
 
+use crate::{app_config::AppConfig, monitor_stdout::LogT};
+
+// runs command, starting stdout and stderr monitoring
 pub(crate) async fn run_command(config: AppConfig, error_path: String) -> Result<(), ExitStatus> {
-    let name = get_name(&config.path);
-    let (mut process, start) = run(config.path, config.args);
+    let name = get_name(&config.command);
+    let (mut process, start) = run(config.command, config.args);
     let process_folder = error_path + "/" + &name + "-" + &start.to_rfc3339();
 
     let stderr = process.stderr.take().unwrap();
@@ -51,6 +48,7 @@ pub(crate) async fn run_command(config: AppConfig, error_path: String) -> Result
     Ok(())
 }
 
+// run detached with stdout and stderr piped
 fn run(command: String, args: Vec<String>) -> (Popen, DateTime<Utc>) {
     (
         Popen::create(
@@ -67,6 +65,7 @@ fn run(command: String, args: Vec<String>) -> (Popen, DateTime<Utc>) {
     )
 }
 
+// get name from command. should extract file name from executable path
 fn get_name(command: &str) -> String {
     Path::new(command)
         .file_stem()
@@ -76,6 +75,7 @@ fn get_name(command: &str) -> String {
         .to_owned()
 }
 
+// created full command array from command and arguments
 fn create_command(command: String, mut args: Vec<String>) -> Vec<String> {
     args.insert(0, command);
     args

@@ -1,23 +1,25 @@
-/* 
+/*
 This file is part of the Everdream Runner (https://gitlab.com/everdream/runner).
 Copyright (c) 2021 Kyoko.
- 
-This program is free software: you can redistribute it and/or modify  
-it under the terms of the GNU General Public License as published by  
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
 the Free Software Foundation, version 3.
 
-This program is distributed in the hope that it will be useful, but 
-WITHOUT ANY WARRANTY; without even the implied warranty of 
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details.
 
-You should have received a copy of the GNU General Public License 
+You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use crate::app_config::AppConfig;
 use clap::crate_version;
 
+use crate::app_config::AppConfig;
+
+// Configuration error. All possible errors that can happen during the parsing of configuration
 #[derive(Debug)]
 pub(crate) enum ConfigError {
     FileOpenError(std::io::Error),
@@ -39,6 +41,7 @@ pub(crate) struct Config {
 }
 
 impl Config {
+    // creates parsed out configuration from a path to configuration file and reports on any errors
     pub(crate) fn create(path: String) -> Result<Config, ConfigError> {
         let file = match std::fs::File::open(&path) {
             Ok(file) => file,
@@ -52,6 +55,7 @@ impl Config {
         Config::parse_config(&json)
     }
 
+    // verifies that config fits application name and version
     fn verify_config(json: &serde_json::Value) -> Result<(), ConfigError> {
         let application = match json.get("application") {
             Some(app) => app,
@@ -70,6 +74,7 @@ impl Config {
         Ok(())
     }
 
+    // parses config from json value
     fn parse_config(json: &serde_json::Value) -> Result<Config, ConfigError> {
         Ok(Config {
             apps: Config::parse_apps(json)?,
@@ -77,6 +82,7 @@ impl Config {
         })
     }
 
+    // parses apps part of configuration file. Passes to AppConfig
     fn parse_apps(json: &serde_json::Value) -> Result<Vec<AppConfig>, ConfigError> {
         let apps = match json.get("apps") {
             Some(apps) => apps,
@@ -86,26 +92,26 @@ impl Config {
             Some(apps) => apps,
             None => return Err(ConfigError::WrongAppsFormat),
         };
-        apps
-            .iter()
+        apps.iter()
             .map(AppConfig::parse_config)
             .into_iter()
             .collect::<Result<Vec<AppConfig>, ConfigError>>()
     }
 
+    // parses crash path specified in config file
     fn parse_crash_path(json: &serde_json::Value) -> Result<String, ConfigError> {
         match json.get("crash path") {
             Some(path) => match path.as_str() {
                 Some(path) => Ok(path.to_owned()),
                 None => Err(ConfigError::BadAppConfig(
-                        "crash path".to_owned(),
-                        json.to_string(),
-                    ))
-            },
-            None => Err(ConfigError::BadAppConfig(
                     "crash path".to_owned(),
                     json.to_string(),
-                ))
+                )),
+            },
+            None => Err(ConfigError::BadAppConfig(
+                "crash path".to_owned(),
+                json.to_string(),
+            )),
         }
     }
 }
