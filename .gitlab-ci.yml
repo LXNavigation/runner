@@ -1,0 +1,10 @@
+stages:
+  - build
+
+rust-nightly:
+  stage: build
+  script:
+    - cargo clean
+    - cargo clippy 
+    - cargo build
+    - cargo test
