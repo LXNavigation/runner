@@ -20,6 +20,8 @@ use std::{
     io::{BufRead, BufReader, Write},
 };
 
+use chrono::Utc;
+
 // runs another thread to monitor standard err. all outputs are stored in stderr.txt file in folder
 pub(crate) async fn monitor_stderr(err_path: String, stderr: File) {
     let reader = BufReader::new(stderr);
@@ -43,5 +45,6 @@ fn append_to_file(err_path: String, err_string: String) {
         .open(err_path + "/stderr.txt")
         .unwrap();
 
-    writeln!(file, "{}", err_string).expect("could not write to err file");
+        writeln!(file, "{} | {}", Utc::now().to_rfc3339(), err_string)
+        .expect("could not write to stderr file");
 }

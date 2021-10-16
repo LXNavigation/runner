@@ -54,7 +54,7 @@ pub(crate) struct AppConfig {
     pub(crate) args: Vec<String>,
 
     // number of lines to store for stdout
-    pub(crate) hist: usize,
+    pub(crate) stdout_history: usize,
 
     // mode to run application in
     pub(crate) mode: AppMode,
@@ -66,7 +66,7 @@ impl AppConfig {
         Ok(AppConfig {
             command: AppConfig::parse_command(json)?,
             args: AppConfig::parse_args(json)?,
-            hist: AppConfig::parse_history(json)?,
+            stdout_history: AppConfig::parse_history(json)?,
             mode: AppConfig::parse_mode(json)?,
         })
     }
@@ -126,12 +126,12 @@ impl AppConfig {
     // parses history (number of lines for stdout)
     fn parse_history(json: &serde_json::Value) -> Result<usize, ConfigError> {
         let mut history = DEFAULT_HISTORY;
-        if let Some(value) = json.get("hist") {
+        if let Some(value) = json.get("stdout history") {
             history = match value.as_u64() {
                 Some(val) => val,
                 None => {
                     return Err(ConfigError::BadAppConfig(
-                        String::from("hist"),
+                        String::from("stdout history"),
                         json.to_string(),
                     ))
                 }

@@ -34,7 +34,7 @@ pub(crate) async fn run_command(config: AppConfig, error_path: String) -> Result
         stderr,
     ));
 
-    let mut buffer = LogT::with_capacity(config.hist);
+    let mut buffer = LogT::with_capacity(config.stdout_history);
     let stdout = process.stdout.take().unwrap();
     crate::monitor_stdout::monitor_stdout(&mut buffer, stdout);
 

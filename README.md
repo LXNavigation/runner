@@ -20,6 +20,8 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 All options can be left at default. You might need to restart your terminal at this point.
 
+You will also need to install [ncurses](https://github.com/gyscos/cursive/wiki/Install-ncurses).
+
 ### Build
 
 To test application, move your console into application folder and run:
@@ -43,14 +45,14 @@ Runner takes a json formatted configuration file. A file should look something l
 ```json
 {
     "application": "runner",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "crash path": "./err",
     "apps": [
         {
             "path": "./updater/updater",
             "args": [ "-all" ],
             "mode": "run until success",
-            "hist": 100
+            "stdout history": 100
         },
         {
             "path": "./application/app",
@@ -86,7 +88,7 @@ Runner takes a json formatted configuration file. A file should look something l
 
  Default is `"run until success"`
 
- `hist` Number of lines of stdout to store in case of the crash. Larger number takes more memory but can be useful when debugging any crashes that occurred.
+ `stdout history` Number of lines of stdout to store in case of the crash. Larger numbers take more memory but can be useful when debugging any crashes that occurred. Default is 1000.
 
  ## Running
 
