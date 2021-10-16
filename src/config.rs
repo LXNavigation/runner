@@ -104,12 +104,12 @@ impl Config {
             Some(path) => match path.as_str() {
                 Some(path) => Ok(path.to_owned()),
                 None => Err(ConfigError::BadAppConfig(
-                    "crash path".to_owned(),
+                    String::from("crash path"),
                     json.to_string(),
                 )),
             },
             None => Err(ConfigError::BadAppConfig(
-                "crash path".to_owned(),
+                String::from("crash path"),
                 json.to_string(),
             )),
         }

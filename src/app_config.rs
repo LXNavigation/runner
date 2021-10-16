@@ -77,15 +77,15 @@ impl AppConfig {
             Some(cmd) => cmd.as_str(),
             None => {
                 return Err(ConfigError::BadAppConfig(
-                    "path".to_owned(),
+                    String::from("path"),
                     json.to_string(),
                 ))
             }
         };
         match path {
-            Some(path) => Ok(path.to_owned()),
+            Some(path) => Ok(String::from(path)),
             None => Err(ConfigError::BadAppConfig(
-                "path".to_owned(),
+                String::from("path"),
                 json.to_string(),
             )),
         }
@@ -97,7 +97,7 @@ impl AppConfig {
             Some(args) => args,
             None => {
                 return Err(ConfigError::BadAppConfig(
-                    "args".to_owned(),
+                    String::from("args"),
                     json.to_string(),
                 ))
             }
@@ -111,13 +111,13 @@ impl AppConfig {
                 match args {
                     Some(args) => Ok(args),
                     None => Err(ConfigError::BadAppConfig(
-                        "args array".to_owned(),
+                        String::from("args array"),
                         json.to_string(),
                     )),
                 }
             }
             None => Err(ConfigError::BadAppConfig(
-                "args array".to_owned(),
+                String::from("args array"),
                 json.to_string(),
             )),
         }
@@ -131,7 +131,7 @@ impl AppConfig {
                 Some(val) => val,
                 None => {
                     return Err(ConfigError::BadAppConfig(
-                        "hist".to_owned(),
+                        String::from("hist"),
                         json.to_string(),
                     ))
                 }
@@ -152,7 +152,7 @@ impl AppConfig {
             Some(mode) => mode,
             None => {
                 return Err(ConfigError::BadAppConfig(
-                    "mode".to_owned(),
+                    String::from("mode"),
                     json.to_string(),
                 ))
             }
@@ -164,7 +164,7 @@ impl AppConfig {
             "run until success and wait" => Ok(AppMode::RunUntilSuccessAndWait),
             "keep alive" => Ok(AppMode::KeepAlive),
             _ => Err(ConfigError::BadAppConfig(
-                "mode".to_owned(),
+                String::from("mode"),
                 json.to_string(),
             )),
         }

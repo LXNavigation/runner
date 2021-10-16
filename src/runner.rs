@@ -95,7 +95,7 @@ fn run_until_success(app: AppConfig, error_path: String) -> JoinHandle<()> {
 }
 
 // run until success (exit code 0) and wait before moving to next command
-pub(crate) fn run_until_success_and_wait(app: AppConfig, error_path: String) {
+fn run_until_success_and_wait(app: AppConfig, error_path: String) {
     task::block_on(async move {
         loop {
             if let Ok(()) = crate::run_command::run_command(app.clone(), error_path.clone()).await {
@@ -106,7 +106,7 @@ pub(crate) fn run_until_success_and_wait(app: AppConfig, error_path: String) {
 }
 
 // keep alive, ignoring exit codes
-pub(crate) fn run_keep_alive(app: AppConfig, error_path: String) -> JoinHandle<()> {
+fn run_keep_alive(app: AppConfig, error_path: String) -> JoinHandle<()> {
     task::spawn(async move {
         loop {
             let _ = crate::run_command::run_command(app.clone(), error_path.clone()).await;

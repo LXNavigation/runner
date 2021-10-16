@@ -80,3 +80,24 @@ fn create_command(command: String, mut args: Vec<String>) -> Vec<String> {
     args.insert(0, command);
     args
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_get_name() {
+        assert_eq!(get_name("ls"), "ls");
+        assert_eq!(get_name("test.exe"), "test");
+        assert_eq!(get_name("path/test.exe"), "test");
+        assert_eq!(get_name("path/test"), "test");
+    }
+
+    #[test]
+    fn test_create_command() {
+        let command = String::from("test");
+        let args = Vec::new();
+        assert_eq!(create_command(command, args), [String::from("test")]);
+    }
+}
