@@ -53,7 +53,7 @@ pub fn run(config: String) {
 
     let mut siv = cursive::default();
     siv.add_layer(Dialog::around(TextView::new("All jobs finished, you can quit now"))
-                             .title("Cursive")
+                             .title("Runner")
                              .button("Quit", |s| s.quit()));
         siv.run();
 }
