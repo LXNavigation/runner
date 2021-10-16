@@ -1,6 +1,6 @@
-nightly:cargo:
-  image: rustdocker/rust:nightly
-  stage: test
-  script:
-    - cargo test --verbose --jobs 1
-    - cargo build --release
+# nightly:cargo:
+#  image: rustdocker/rust:nightly
+#  stage: test
+#  script:
+#    - cargo test --verbose --jobs 1
+#    - cargo build --release

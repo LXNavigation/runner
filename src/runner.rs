@@ -21,8 +21,8 @@ use crate::{
 };
 
 use async_std::task::{self, JoinHandle};
+use cursive::views::{Dialog, TextView};
 use futures::future::join_all;
-use std::io::stdin;
 
 // main run called from main function
 pub fn run(config: String) {
@@ -50,11 +50,12 @@ pub fn run(config: String) {
     task::block_on(join_all(handles));
 
     // quit
-    println!("All jobs finished, press enter to quit.");
-    let mut s = String::new();
-    stdin()
-        .read_line(&mut s)
-        .expect("Did not enter a valid string");
+
+    let mut siv = cursive::default();
+    siv.add_layer(Dialog::around(TextView::new("All jobs finished, you can quit now"))
+                             .title("Cursive")
+                             .button("Quit", |s| s.quit()));
+        siv.run();
 }
 
 // executes app based on mode
