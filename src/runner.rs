@@ -21,7 +21,6 @@ use crate::{
 };
 
 use async_std::task::{self, JoinHandle};
-use cursive::views::{Dialog, TextView};
 use futures::future::join_all;
 
 // main run called from main function
@@ -48,14 +47,6 @@ pub fn run(config: String) {
 
     // wait for all commands to finish
     task::block_on(join_all(handles));
-
-    // quit
-
-    let mut siv = cursive::default();
-    siv.add_layer(Dialog::around(TextView::new("All jobs finished, you can quit now"))
-                             .title("Runner")
-                             .button("Quit", |s| s.quit()));
-        siv.run();
 }
 
 // executes app based on mode

@@ -20,8 +20,6 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 All options can be left at default. You might need to restart your terminal at this point.
 
-You will also need to install [ncurses](https://github.com/gyscos/cursive/wiki/Install-ncurses).
-
 ### Build
 
 To test application, move your console into application folder and run:
