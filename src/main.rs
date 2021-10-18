@@ -21,6 +21,7 @@ mod monitor_stderr;
 mod monitor_stdout;
 mod run_command;
 mod runner;
+mod tui;
 
 use clap::{crate_version, App, Arg};
 

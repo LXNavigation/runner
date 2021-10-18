@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+use async_std::channel::Sender;
 use chrono::{DateTime, Utc};
 use circular_queue::CircularQueue;
 use std::{
@@ -22,15 +23,21 @@ use std::{
     io::{BufRead, BufReader, Write},
 };
 
+use crate::tui::TuiEvent;
+
 // log type for stderr
 pub(crate) type LogT = CircularQueue<(DateTime<Utc>, String)>;
 
 // monitors std in parent thread. returns only when application exits
-pub(crate) fn monitor_stdout(buffer: &mut LogT, stdout: File) {
+pub(crate) fn monitor_stdout(buffer: &mut LogT, stdout: File, tx: Sender<TuiEvent>, id: usize) {
     let reader = BufReader::new(stdout);
     for line in reader.lines() {
         match line {
-            Ok(line) => buffer.push((Utc::now(), line)),
+            Ok(line) => {
+                buffer.push((Utc::now(), line.clone()));
+                tx.try_send(TuiEvent::NewStdoutMessage(id, line))
+                    .expect("unbound channel should never be full");
+            }
             Err(err) => {
                 eprintln!("quitting std out monitoring because of {}", err);
                 return;

@@ -15,6 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+use std::path::Path;
+
 use crate::config::ConfigError;
 
 // default number of lines to store for stdout history
@@ -69,6 +71,16 @@ impl AppConfig {
             stdout_history: AppConfig::parse_history(json)?,
             mode: AppConfig::parse_mode(json)?,
         })
+    }
+
+    // get name from command. should extract file name from executable path
+    pub(crate) fn get_name(&self) -> String {
+        Path::new(&self.command)
+            .file_stem()
+            .expect("This is not a valid command!")
+            .to_str()
+            .unwrap()
+            .to_owned()
     }
 
     // parses command part of configuration. This field must be present in configuration
@@ -168,5 +180,31 @@ impl AppConfig {
                 json.to_string(),
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_get_name() {
+        let mut cfg = AppConfig {
+            command: String::from("ls"),
+            args: Vec::new(),
+            stdout_history: 100,
+            mode: AppMode::KeepAlive,
+        };
+        assert_eq!(cfg.get_name(), "ls");
+
+        cfg.command = String::from("test.exe");
+        assert_eq!(cfg.get_name(), "test");
+
+        cfg.command = String::from("path/test.exe");
+        assert_eq!(cfg.get_name(), "test");
+
+        cfg.command = String::from("path/test");
+        assert_eq!(cfg.get_name(), "test");
     }
 }

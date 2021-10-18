@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+use async_std::channel::Sender;
 use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, Write},
@@ -22,12 +23,23 @@ use std::{
 
 use chrono::Utc;
 
+use crate::tui::TuiEvent;
+
 // runs another thread to monitor standard err. all outputs are stored in stderr.txt file in folder
-pub(crate) async fn monitor_stderr(err_path: String, stderr: File) {
+pub(crate) async fn monitor_stderr(
+    err_path: String,
+    stderr: File,
+    tx: Sender<TuiEvent>,
+    id: usize,
+) {
     let reader = BufReader::new(stderr);
     for line in reader.lines() {
         match line {
-            Ok(line) => append_to_file(err_path.clone(), line),
+            Ok(line) => {
+                append_to_file(err_path.clone(), line.clone());
+                tx.try_send(TuiEvent::NewStderrMessage(id, line))
+                    .expect("unbound channel should never be full");
+            }
             Err(err) => {
                 eprintln!("quitting sterr monitoring because of {}", err);
                 return;
