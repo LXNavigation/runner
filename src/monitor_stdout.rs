@@ -1,6 +1,6 @@
 /*
 This file is part of the Everdream Runner (https://gitlab.com/everdream/runner).
-Copyright (c) 2021 Kyoko.
+Copyright (c) 2021 Everdream.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
