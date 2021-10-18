@@ -45,15 +45,15 @@ Runner takes a json formatted configuration file. A file should look something l
     "application": "runner",
     "version": "0.2.0",
     "crash path": "./err",
-    "apps": [
+    "commands": [
         {
-            "path": "./updater/updater",
+            "command": "./updater/updater",
             "args": [ "-all" ],
             "mode": "run until success",
             "stdout history": 100
         },
         {
-            "path": "./application/app",
+            "command": "./application/app",
             "args": [ "-c", "custom_config.cfg" ],
             "mode": "keep alive"
         },
@@ -68,13 +68,13 @@ Runner takes a json formatted configuration file. A file should look something l
 
 `crash path` field is mandatory. It is a location of folder where crash logs will be stored. Runner will create a folder if it doesn't exist, but will not work if it can not write to the location.
 
-`apps` mandatory array of app configurations to be run. Runner will execute them in an order provided.
+`commands` mandatory array of command configurations to be run. Runner will execute them in an order provided.
 
-### App configuration
+### Command configuration
 
-`path` mandatory path to application to execute or a system command. Path can be either relative or absolute.
+`command` mandatory command to execute. If path to application it can be either relative or absolute.
 
-`args` Optional array of strings to be passed to the command defined in path.
+`args` Optional array of strings to be passed to the command defined in command.
 
 `mode` Optional mode to run application in. There are 5 possible values:
 

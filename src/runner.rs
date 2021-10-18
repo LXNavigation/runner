@@ -16,7 +16,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 use crate::{
-    app_config::{AppConfig, AppMode},
+    command_config::{CommandConfig, CommandMode},
     config::Config,
     tui::TuiEvent,
 };
@@ -42,7 +42,7 @@ pub fn run(config: String) {
     };
 
     tx.try_send(TuiEvent::TabListChanged(
-        config.apps.iter().map(|app| app.get_name()).collect(),
+        config.commands.iter().map(|command| command.get_name()).collect(),
     ))
     .expect("unbound channel should never be full");
 
@@ -51,8 +51,8 @@ pub fn run(config: String) {
 
     // execute all commands, saving handles
     let mut handles = Vec::new();
-    for (id, app) in config.apps.into_iter().enumerate() {
-        if let Some(handle) = execute_app(app, config.crash_path.clone(), tx.clone(), id) {
+    for (id, command) in config.commands.into_iter().enumerate() {
+        if let Some(handle) = execute_command(command, config.crash_path.clone(), tx.clone(), id) {
             handles.push(handle);
         }
     }
@@ -62,40 +62,40 @@ pub fn run(config: String) {
     task::block_on(tui_handle);
 }
 
-// executes app based on mode
-fn execute_app(
-    app: AppConfig,
+// executes command based on mode
+fn execute_command(
+    command: CommandConfig,
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,
 ) -> Option<JoinHandle<()>> {
-    match app.mode {
-        AppMode::RunOnce => return Some(run_once(app, error_path, tx, id)),
-        AppMode::RunOnceAndWait => run_once_and_wait(app, error_path, tx, id),
-        AppMode::RunUntilSuccess => return Some(run_until_success(app, error_path, tx, id)),
-        AppMode::RunUntilSuccessAndWait => run_until_success_and_wait(app, error_path, tx, id),
-        AppMode::KeepAlive => return Some(run_keep_alive(app, error_path, tx, id)),
+    match command.mode {
+        CommandMode::RunOnce => return Some(run_once(command, error_path, tx, id)),
+        CommandMode::RunOnceAndWait => run_once_and_wait(command, error_path, tx, id),
+        CommandMode::RunUntilSuccess => return Some(run_until_success(command, error_path, tx, id)),
+        CommandMode::RunUntilSuccessAndWait => run_until_success_and_wait(command, error_path, tx, id),
+        CommandMode::KeepAlive => return Some(run_keep_alive(command, error_path, tx, id)),
     };
     None
 }
 
 // run once
-fn run_once(app: AppConfig, error_path: String, tx: Sender<TuiEvent>, id: usize) -> JoinHandle<()> {
+fn run_once(command: CommandConfig, error_path: String, tx: Sender<TuiEvent>, id: usize) -> JoinHandle<()> {
     task::spawn(async move {
-        let _ = crate::run_command::run_command(app, error_path, tx, id).await;
+        let _ = crate::run_command::run_command(command, error_path, tx, id).await;
     })
 }
 
 // run once and wait before moving to next command
-fn run_once_and_wait(app: AppConfig, error_path: String, tx: Sender<TuiEvent>, id: usize) {
+fn run_once_and_wait(command: CommandConfig, error_path: String, tx: Sender<TuiEvent>, id: usize) {
     task::block_on(async move {
-        let _ = crate::run_command::run_command(app, error_path, tx, id).await;
+        let _ = crate::run_command::run_command(command, error_path, tx, id).await;
     });
 }
 
 // run until success (exit code 0)
 fn run_until_success(
-    app: AppConfig,
+    command: CommandConfig,
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,
@@ -103,7 +103,7 @@ fn run_until_success(
     task::spawn(async move {
         loop {
             if let Ok(()) =
-                crate::run_command::run_command(app.clone(), error_path.clone(), tx.clone(), id)
+                crate::run_command::run_command(command.clone(), error_path.clone(), tx.clone(), id)
                     .await
             {
                 return;
@@ -113,11 +113,11 @@ fn run_until_success(
 }
 
 // run until success (exit code 0) and wait before moving to next command
-fn run_until_success_and_wait(app: AppConfig, error_path: String, tx: Sender<TuiEvent>, id: usize) {
+fn run_until_success_and_wait(command: CommandConfig, error_path: String, tx: Sender<TuiEvent>, id: usize) {
     task::block_on(async move {
         loop {
             if let Ok(()) =
-                crate::run_command::run_command(app.clone(), error_path.clone(), tx.clone(), id)
+                crate::run_command::run_command(command.clone(), error_path.clone(), tx.clone(), id)
                     .await
             {
                 return;
@@ -128,7 +128,7 @@ fn run_until_success_and_wait(app: AppConfig, error_path: String, tx: Sender<Tui
 
 // keep alive, ignoring exit codes
 fn run_keep_alive(
-    app: AppConfig,
+    command: CommandConfig,
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,
@@ -136,7 +136,7 @@ fn run_keep_alive(
     task::spawn(async move {
         loop {
             let _ =
-                crate::run_command::run_command(app.clone(), error_path.clone(), tx.clone(), id)
+                crate::run_command::run_command(command.clone(), error_path.clone(), tx.clone(), id)
                     .await;
         }
     })

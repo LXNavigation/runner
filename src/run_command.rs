@@ -19,11 +19,11 @@ use async_std::{channel::Sender, task};
 use chrono::{DateTime, Utc};
 use subprocess::{ExitStatus, Popen, PopenConfig, Redirection};
 
-use crate::{app_config::AppConfig, monitor_stdout::LogT, tui::TuiEvent};
+use crate::{command_config::CommandConfig, monitor_stdout::LogT, tui::TuiEvent};
 
 // runs command, starting stdout and stderr monitoring
 pub(crate) async fn run_command(
-    config: AppConfig,
+    config: CommandConfig,
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,

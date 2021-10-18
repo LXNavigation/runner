@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-mod app_config;
+mod command_config;
 mod config;
 mod monitor_stderr;
 mod monitor_stdout;

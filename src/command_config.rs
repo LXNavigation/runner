@@ -23,11 +23,11 @@ use crate::config::ConfigError;
 const DEFAULT_HISTORY: u64 = 1000u64;
 
 // default mode for application if none specified
-const DEFAULT_MODE: AppMode = AppMode::RunUntilSuccess;
+const DEFAULT_MODE: CommandMode = CommandMode::RunUntilSuccess;
 
 // enum indicating whether app should be restarted
 #[derive(Debug, Clone)]
-pub(crate) enum AppMode {
+pub(crate) enum CommandMode {
     // run once, never repeat
     RunOnce,
 
@@ -48,8 +48,8 @@ pub(crate) enum AppMode {
 //
 // this struct holds all information needed to successfully run a process
 #[derive(Debug, Clone)]
-pub(crate) struct AppConfig {
-    // path / command to execute
+pub(crate) struct CommandConfig {
+    // command to execute
     pub(crate) command: String,
 
     // arguments to pass to command
@@ -59,17 +59,17 @@ pub(crate) struct AppConfig {
     pub(crate) stdout_history: usize,
 
     // mode to run application in
-    pub(crate) mode: AppMode,
+    pub(crate) mode: CommandMode,
 }
 
-impl AppConfig {
+impl CommandConfig {
     // parses given app configuration, returning AppConfig on success, or error on failure
-    pub(crate) fn parse_config(json: &serde_json::Value) -> Result<AppConfig, ConfigError> {
-        Ok(AppConfig {
-            command: AppConfig::parse_command(json)?,
-            args: AppConfig::parse_args(json)?,
-            stdout_history: AppConfig::parse_history(json)?,
-            mode: AppConfig::parse_mode(json)?,
+    pub(crate) fn parse_config(json: &serde_json::Value) -> Result<CommandConfig, ConfigError> {
+        Ok(CommandConfig {
+            command: CommandConfig::parse_command(json)?,
+            args: CommandConfig::parse_args(json)?,
+            stdout_history: CommandConfig::parse_history(json)?,
+            mode: CommandConfig::parse_mode(json)?,
         })
     }
 
@@ -77,7 +77,7 @@ impl AppConfig {
     pub(crate) fn get_name(&self) -> String {
         Path::new(&self.command)
             .file_stem()
-            .expect("This is not a valid command!")
+            .unwrap_or_else(|| panic!("'{}' is not a valid command!", &self.command))
             .to_str()
             .unwrap()
             .to_owned()
@@ -85,19 +85,19 @@ impl AppConfig {
 
     // parses command part of configuration. This field must be present in configuration
     fn parse_command(json: &serde_json::Value) -> Result<String, ConfigError> {
-        let path = match json.get("path") {
+        let command = match json.get("command") {
             Some(cmd) => cmd.as_str(),
             None => {
-                return Err(ConfigError::BadAppConfig(
-                    String::from("path"),
+                return Err(ConfigError::BadCommandConfig(
+                    String::from("command"),
                     json.to_string(),
                 ))
             }
         };
-        match path {
-            Some(path) => Ok(String::from(path)),
-            None => Err(ConfigError::BadAppConfig(
-                String::from("path"),
+        match command {
+            Some(command) => Ok(String::from(command)),
+            None => Err(ConfigError::BadCommandConfig(
+                String::from("command"),
                 json.to_string(),
             )),
         }
@@ -119,13 +119,13 @@ impl AppConfig {
                     .collect();
                 match args {
                     Some(args) => Ok(args),
-                    None => Err(ConfigError::BadAppConfig(
+                    None => Err(ConfigError::BadCommandConfig(
                         String::from("args"),
                         json.to_string(),
                     )),
                 }
             }
-            None => Err(ConfigError::BadAppConfig(
+            None => Err(ConfigError::BadCommandConfig(
                 String::from("args"),
                 json.to_string(),
             )),
@@ -139,7 +139,7 @@ impl AppConfig {
             history = match value.as_u64() {
                 Some(val) => val,
                 None => {
-                    return Err(ConfigError::BadAppConfig(
+                    return Err(ConfigError::BadCommandConfig(
                         String::from("stdout history"),
                         json.to_string(),
                     ))
@@ -152,7 +152,7 @@ impl AppConfig {
     }
 
     // parses mode. Has 5 valid values, everything else should be reported as error
-    fn parse_mode(json: &serde_json::Value) -> Result<AppMode, ConfigError> {
+    fn parse_mode(json: &serde_json::Value) -> Result<CommandMode, ConfigError> {
         let mode = match json.get("mode") {
             Some(mode) => mode.as_str(),
             None => return Ok(DEFAULT_MODE),
@@ -160,19 +160,19 @@ impl AppConfig {
         let mode = match mode {
             Some(mode) => mode,
             None => {
-                return Err(ConfigError::BadAppConfig(
+                return Err(ConfigError::BadCommandConfig(
                     String::from("mode"),
                     json.to_string(),
                 ))
             }
         };
         match mode {
-            "run once" => Ok(AppMode::RunOnce),
-            "run once and wait" => Ok(AppMode::RunOnceAndWait),
-            "run until success" => Ok(AppMode::RunUntilSuccess),
-            "run until success and wait" => Ok(AppMode::RunUntilSuccessAndWait),
-            "keep alive" => Ok(AppMode::KeepAlive),
-            _ => Err(ConfigError::BadAppConfig(
+            "run once" => Ok(CommandMode::RunOnce),
+            "run once and wait" => Ok(CommandMode::RunOnceAndWait),
+            "run until success" => Ok(CommandMode::RunUntilSuccess),
+            "run until success and wait" => Ok(CommandMode::RunUntilSuccessAndWait),
+            "keep alive" => Ok(CommandMode::KeepAlive),
+            _ => Err(ConfigError::BadCommandConfig(
                 String::from("mode"),
                 json.to_string(),
             )),
@@ -190,27 +190,34 @@ mod tests {
     #[test]
     fn test_parse_config() {
         let json = json!({
-            "path": "./updater/updater",
+            "command": "./updater/updater",
             "args": [ "-all" ],
             "mode": "run until success",
             "stdout history": 100
         });
-        AppConfig::parse_config(&json).unwrap();
+        CommandConfig::parse_config(&json).unwrap();
 
         let json = json!({
-            "path": "./updater/updater"
+            "command": "./updater/updater"
         });
 
-        AppConfig::parse_config(&json).unwrap();
+        CommandConfig::parse_config(&json).unwrap();
+
+        let json = json!({
+            "args": [ "-all" ],
+            "mode": "run until success",
+            "stdout history": 100
+        });
+        CommandConfig::parse_config(&json).unwrap_err();
     }
 
     #[test]
     fn test_get_name() {
-        let mut cfg = AppConfig {
+        let mut cfg = CommandConfig {
             command: String::from("ls"),
             args: Vec::new(),
             stdout_history: 100,
-            mode: AppMode::KeepAlive,
+            mode: CommandMode::KeepAlive,
         };
         assert_eq!(cfg.get_name(), "ls");
 

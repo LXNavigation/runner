@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 use clap::crate_version;
 
-use crate::app_config::AppConfig;
+use crate::command_config::CommandConfig;
 
 // Configuration error. All possible errors that can happen during the parsing of configuration
 #[derive(Debug)]
@@ -28,15 +28,15 @@ pub(crate) enum ConfigError {
     WrongApplicationName(String),
     MissingVersion,
     WrongVersion(String),
-    MissingAppsArray,
-    WrongAppsFormat,
-    BadAppConfig(String, String),
+    MissingCommandsArray,
+    WrongCommandsFormat,
+    BadCommandConfig(String, String),
 }
 
 // All config data parsed out
 #[derive(Debug)]
 pub(crate) struct Config {
-    pub(crate) apps: Vec<AppConfig>,
+    pub(crate) commands: Vec<CommandConfig>,
     pub(crate) crash_path: String,
 }
 
@@ -77,25 +77,25 @@ impl Config {
     // parses config from json value
     fn parse_config(json: &serde_json::Value) -> Result<Config, ConfigError> {
         Ok(Config {
-            apps: Config::parse_apps(json)?,
+            commands: Config::parse_commands(json)?,
             crash_path: Config::parse_crash_path(json)?,
         })
     }
 
-    // parses apps part of configuration file. Passes to AppConfig
-    fn parse_apps(json: &serde_json::Value) -> Result<Vec<AppConfig>, ConfigError> {
-        let apps = match json.get("apps") {
-            Some(apps) => apps,
-            None => return Err(ConfigError::MissingAppsArray),
+    // parses commands part of configuration file. Passes to CommandConfig
+    fn parse_commands(json: &serde_json::Value) -> Result<Vec<CommandConfig>, ConfigError> {
+        let commands = match json.get("commands") {
+            Some(commands) => commands,
+            None => return Err(ConfigError::MissingCommandsArray),
         };
-        let apps = match apps.as_array() {
-            Some(apps) => apps,
-            None => return Err(ConfigError::WrongAppsFormat),
+        let commands = match commands.as_array() {
+            Some(commands) => commands,
+            None => return Err(ConfigError::WrongCommandsFormat),
         };
-        apps.iter()
-            .map(AppConfig::parse_config)
+        commands.iter()
+            .map(CommandConfig::parse_config)
             .into_iter()
-            .collect::<Result<Vec<AppConfig>, ConfigError>>()
+            .collect::<Result<Vec<CommandConfig>, ConfigError>>()
     }
 
     // parses crash path specified in config file
@@ -103,12 +103,12 @@ impl Config {
         match json.get("crash path") {
             Some(path) => match path.as_str() {
                 Some(path) => Ok(path.to_owned()),
-                None => Err(ConfigError::BadAppConfig(
+                None => Err(ConfigError::BadCommandConfig(
                     String::from("crash path"),
                     json.to_string(),
                 )),
             },
-            None => Err(ConfigError::BadAppConfig(
+            None => Err(ConfigError::BadCommandConfig(
                 String::from("crash path"),
                 json.to_string(),
             )),

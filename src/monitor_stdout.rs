@@ -28,7 +28,7 @@ use crate::tui::TuiEvent;
 // log type for stderr
 pub(crate) type LogT = CircularQueue<(DateTime<Utc>, String)>;
 
-// monitors std in parent thread. returns only when application exits
+// monitors std in parent thread. returns only when command exits
 pub(crate) fn monitor_stdout(buffer: &mut LogT, stdout: File, tx: Sender<TuiEvent>, id: usize) {
     let reader = BufReader::new(stdout);
     for line in reader.lines() {
