@@ -74,7 +74,7 @@ Runner takes a json formatted configuration file. A file should look something l
 
 `path` mandatory path to application to execute or a system command. Path can be either relative or absolute.
 
-`args` mandatory array of strings to be passed to the command defined in path. Can be empty when no arguments are needed
+`args` Optional array of strings to be passed to the command defined in path.
 
 `mode` Optional mode to run application in. There are 5 possible values:
 

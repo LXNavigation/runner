@@ -108,10 +108,7 @@ impl AppConfig {
         let args = match json.get("args") {
             Some(args) => args,
             None => {
-                return Err(ConfigError::BadAppConfig(
-                    String::from("args"),
-                    json.to_string(),
-                ))
+                return Ok(Vec::new())
             }
         };
         match args.as_array() {
@@ -123,13 +120,13 @@ impl AppConfig {
                 match args {
                     Some(args) => Ok(args),
                     None => Err(ConfigError::BadAppConfig(
-                        String::from("args array"),
+                        String::from("args"),
                         json.to_string(),
                     )),
                 }
             }
             None => Err(ConfigError::BadAppConfig(
-                String::from("args array"),
+                String::from("args"),
                 json.to_string(),
             )),
         }
@@ -186,7 +183,26 @@ impl AppConfig {
 #[cfg(test)]
 mod tests {
 
+    use serde_json::json;
+
     use super::*;
+
+    #[test]
+    fn test_parse_config() {
+        let json = json!({
+            "path": "./updater/updater",
+            "args": [ "-all" ],
+            "mode": "run until success",
+            "stdout history": 100
+        });
+        AppConfig::parse_config(&json).unwrap();
+
+        let json = json!({
+            "path": "./updater/updater"
+        });
+
+        AppConfig::parse_config(&json).unwrap();
+    }
 
     #[test]
     fn test_get_name() {
