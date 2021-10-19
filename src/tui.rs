@@ -15,9 +15,9 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use async_std::{channel::Receiver, sync::RwLock, task};
-use std::{io, sync::Arc};
-use termion::{event::Key, input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
+use async_std::{channel::{Receiver, unbounded}, sync::RwLock, task};
+use std::{io, sync::Arc, time::Duration};
+use termion::{event::Key, input::{MouseTerminal, TermRead}, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{
     backend::TermionBackend,
     layout::{Constraint, Corner, Direction, Layout},
@@ -27,7 +27,69 @@ use tui::{
     Terminal,
 };
 
-use crate::tui_helper::{Event, Events, Severity, TabsState};
+
+pub enum UserEvent<I> {
+    Input(I),
+    Tick,
+}
+
+const TICK_RATE: Duration = Duration::from_millis(90);
+
+pub(crate) fn start_tui_event_loop() -> Receiver<UserEvent<Key>> {
+    let (tx, rx) = unbounded();
+
+    let tx1 = tx.clone();
+    task::spawn(async move {
+        let stdin = io::stdin();
+        for key in stdin.keys().flatten() {
+            tx1.try_send(UserEvent::Input(key))
+                .expect("unbound channels should never be full");
+        }
+    });
+
+    task::spawn(async move {
+        loop {
+            tx.try_send(UserEvent::Tick)
+                .expect("unbound channels should never be full");
+            task::sleep(TICK_RATE).await;
+        }
+    });
+    rx
+}
+
+#[derive(Clone)]
+pub(crate) enum Severity {
+    Info,
+    Error,
+}
+
+pub(crate) struct TabsState {
+    pub titles: Vec<String>,
+    pub index: usize,
+    pub content: Vec<Vec<(Severity, String)>>,
+}
+
+impl TabsState {
+    pub fn new(titles: Vec<String>) -> TabsState {
+        TabsState {
+            titles,
+            index: 0,
+            content: Vec::new(),
+        }
+    }
+    pub fn next(&mut self) {
+        self.index = (self.index + 1) % self.titles.len();
+    }
+
+    pub fn previous(&mut self) {
+        if self.index > 0 {
+            self.index -= 1;
+        } else {
+            self.index = self.titles.len() - 1;
+        }
+    }
+}
+
 
 struct TuiState {
     tabs: TabsState,
@@ -70,7 +132,7 @@ async fn start_event_loop(tui_state: Arc<RwLock<TuiState>>) {
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend).unwrap();
 
-    let events = Events::new();
+    let events = start_tui_event_loop();
 
     // Main loop
     loop {
@@ -126,7 +188,7 @@ async fn start_event_loop(tui_state: Arc<RwLock<TuiState>>) {
             })
             .unwrap();
 
-        if let Event::Input(input) = events.next().unwrap() {
+        if let Ok(UserEvent::Input(input)) = events.try_recv() {
             match input {
                 Key::Right => app.tabs.next(),
                 Key::Left => app.tabs.previous(),
