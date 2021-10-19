@@ -92,7 +92,8 @@ impl Config {
             Some(commands) => commands,
             None => return Err(ConfigError::WrongCommandsFormat),
         };
-        commands.iter()
+        commands
+            .iter()
             .map(CommandConfig::parse_config)
             .into_iter()
             .collect::<Result<Vec<CommandConfig>, ConfigError>>()

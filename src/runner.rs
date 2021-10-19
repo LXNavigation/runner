@@ -42,7 +42,11 @@ pub fn run(config: String) {
     };
 
     tx.try_send(TuiEvent::TabListChanged(
-        config.commands.iter().map(|command| command.get_name()).collect(),
+        config
+            .commands
+            .iter()
+            .map(|command| command.get_name())
+            .collect(),
     ))
     .expect("unbound channel should never be full");
 
@@ -72,15 +76,24 @@ fn execute_command(
     match command.mode {
         CommandMode::RunOnce => return Some(run_once(command, error_path, tx, id)),
         CommandMode::RunOnceAndWait => run_once_and_wait(command, error_path, tx, id),
-        CommandMode::RunUntilSuccess => return Some(run_until_success(command, error_path, tx, id)),
-        CommandMode::RunUntilSuccessAndWait => run_until_success_and_wait(command, error_path, tx, id),
+        CommandMode::RunUntilSuccess => {
+            return Some(run_until_success(command, error_path, tx, id))
+        }
+        CommandMode::RunUntilSuccessAndWait => {
+            run_until_success_and_wait(command, error_path, tx, id)
+        }
         CommandMode::KeepAlive => return Some(run_keep_alive(command, error_path, tx, id)),
     };
     None
 }
 
 // run once
-fn run_once(command: CommandConfig, error_path: String, tx: Sender<TuiEvent>, id: usize) -> JoinHandle<()> {
+fn run_once(
+    command: CommandConfig,
+    error_path: String,
+    tx: Sender<TuiEvent>,
+    id: usize,
+) -> JoinHandle<()> {
     task::spawn(async move {
         let _ = crate::run_command::run_command(command, error_path, tx, id).await;
     })
@@ -113,7 +126,12 @@ fn run_until_success(
 }
 
 // run until success (exit code 0) and wait before moving to next command
-fn run_until_success_and_wait(command: CommandConfig, error_path: String, tx: Sender<TuiEvent>, id: usize) {
+fn run_until_success_and_wait(
+    command: CommandConfig,
+    error_path: String,
+    tx: Sender<TuiEvent>,
+    id: usize,
+) {
     task::block_on(async move {
         loop {
             if let Ok(()) =
@@ -135,9 +153,13 @@ fn run_keep_alive(
 ) -> JoinHandle<()> {
     task::spawn(async move {
         loop {
-            let _ =
-                crate::run_command::run_command(command.clone(), error_path.clone(), tx.clone(), id)
-                    .await;
+            let _ = crate::run_command::run_command(
+                command.clone(),
+                error_path.clone(),
+                tx.clone(),
+                id,
+            )
+            .await;
         }
     })
 }

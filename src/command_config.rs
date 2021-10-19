@@ -107,9 +107,7 @@ impl CommandConfig {
     fn parse_args(json: &serde_json::Value) -> Result<Vec<String>, ConfigError> {
         let args = match json.get("args") {
             Some(args) => args,
-            None => {
-                return Ok(Vec::new())
-            }
+            None => return Ok(Vec::new()),
         };
         match args.as_array() {
             Some(args) => {
