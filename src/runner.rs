@@ -30,7 +30,7 @@ use futures::future::join_all;
 // main run called from main function
 pub fn run(config: String) {
     let (tx, rx) = channel::unbounded();
-    let tui_handle = task::spawn(crate::tui::run(rx));
+    let tui_handle = task::spawn(crate::tui::run(tx.clone(), rx));
 
     // parse config file
     let config = match Config::create(config) {

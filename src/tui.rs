@@ -15,8 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use async_std::{channel::{Receiver, unbounded}, sync::RwLock, task};
-use std::{io, sync::Arc, time::Duration};
+use async_std::{channel::{Receiver, Sender}, sync::RwLock, task};
+use std::{io, sync::Arc};
 use termion::{event::Key, input::{MouseTerminal, TermRead}, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{
     backend::TermionBackend,
@@ -27,34 +27,12 @@ use tui::{
     Terminal,
 };
 
-
-pub enum UserEvent<I> {
-    Input(I),
-    Tick,
-}
-
-const TICK_RATE: Duration = Duration::from_millis(90);
-
-pub(crate) fn start_tui_event_loop() -> Receiver<UserEvent<Key>> {
-    let (tx, rx) = unbounded();
-
-    let tx1 = tx.clone();
-    task::spawn(async move {
-        let stdin = io::stdin();
-        for key in stdin.keys().flatten() {
-            tx1.try_send(UserEvent::Input(key))
-                .expect("unbound channels should never be full");
-        }
-    });
-
-    task::spawn(async move {
-        loop {
-            tx.try_send(UserEvent::Tick)
-                .expect("unbound channels should never be full");
-            task::sleep(TICK_RATE).await;
-        }
-    });
-    rx
+async fn start_key_monitoring_loop(tx: Sender<TuiEvent>) {
+    let stdin = io::stdin();
+    for key in stdin.keys().flatten() {
+        tx.try_send(TuiEvent::Input(key))
+            .expect("unbound channels should never be full");
+    }
 }
 
 #[derive(Clone)]
@@ -112,13 +90,17 @@ pub(crate) enum TuiEvent {
 
     // command with the given id ended
     CommandEnded(usize),
+
+    // user pressed a key
+    Input(Key)
 }
 
 // tui thread. first to start, last to quit
-pub(crate) async fn run(rx: Receiver<TuiEvent>) {
+pub(crate) async fn run(tx: Sender<TuiEvent>, rx: Receiver<TuiEvent>) {
     let tui_state = Arc::new(RwLock::new(TuiState {
         tabs: TabsState::new(Vec::new()),
     }));
+    task::spawn(start_key_monitoring_loop(tx));
     task::spawn(start_event_loop(tui_state.clone()));
     start_display_loop(rx, tui_state).await;
 }
@@ -132,11 +114,9 @@ async fn start_event_loop(tui_state: Arc<RwLock<TuiState>>) {
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend).unwrap();
 
-    let events = start_tui_event_loop();
-
     // Main loop
     loop {
-        let mut app = tui_state.write().await;
+        let app = tui_state.read().await;
         terminal
             .draw(|f| {
                 let size = f.size();
@@ -188,13 +168,6 @@ async fn start_event_loop(tui_state: Arc<RwLock<TuiState>>) {
             })
             .unwrap();
 
-        if let Ok(UserEvent::Input(input)) = events.try_recv() {
-            match input {
-                Key::Right => app.tabs.next(),
-                Key::Left => app.tabs.previous(),
-                _ => {}
-            };
-        }
     }
 }
 
@@ -218,6 +191,13 @@ async fn start_display_loop(rx: Receiver<TuiEvent>, tui_state: Arc<RwLock<TuiSta
                         app.tabs.content[idx].push((Severity::Error, message));
                     }
                     TuiEvent::CommandEnded(_) => {}
+                    TuiEvent::Input(key) => {
+                        match key {
+                            Key::Right => app.tabs.next(),
+                            Key::Left => app.tabs.previous(),
+                            _ => {}
+                        };
+                    }
                 }
             }
             Err(_) => return,
