@@ -43,7 +43,7 @@ Runner takes a json formatted configuration file. A file should look something l
 ```json
 {
     "application": "runner",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "crash path": "./err",
     "commands": [
         {
