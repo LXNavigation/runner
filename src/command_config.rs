@@ -196,6 +196,14 @@ mod tests {
         CommandConfig::parse_config(&json).unwrap();
 
         let json = json!({
+            "command": "./updater/updater",
+            "args": [ ],
+            "mode": "run until success",
+            "stdout history": 100
+        });
+        CommandConfig::parse_config(&json).unwrap();
+
+        let json = json!({
             "command": "./updater/updater"
         });
 
