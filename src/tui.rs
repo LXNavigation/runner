@@ -16,13 +16,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 use async_std::{channel::{Receiver, Sender}, future::timeout, sync::RwLock, task};
-use std::{io, sync::Arc, time::Duration};
-use termion::{
-    event::Key,
-    input::{MouseTerminal, TermRead},
-    raw::IntoRawMode,
-    screen::AlternateScreen,
-};
+use std::{io::{self, Stdout}, sync::Arc, time::Duration};
+use termion::{event::Key, input::{MouseTerminal, TermRead}, raw::{IntoRawMode, RawTerminal}, screen::AlternateScreen};
 use tui::{
     backend::TermionBackend,
     layout::{Constraint, Corner, Direction, Layout},
@@ -100,33 +95,27 @@ pub(crate) enum TuiEvent {
     Input(Key),
 }
 
+type TerminalT = Terminal<TermionBackend<AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>>>;
+
 // tui thread. first to start, last to quit
 pub(crate) async fn run(tx: Sender<TuiEvent>, rx: Receiver<TuiEvent>) {
+    let stdout = io::stdout().into_raw_mode().unwrap();
+    let stdout = MouseTerminal::from(stdout);
+    let stdout = AlternateScreen::from(stdout);
+    let backend = TermionBackend::new(stdout);
+    let terminal = Terminal::new(backend).unwrap();
+
+
     let tui_state = Arc::new(RwLock::new(TuiState::build(Vec::new())));
     task::spawn(start_key_monitoring_loop(tx));
-    task::spawn(start_event_loop(tui_state.clone()));
-    start_display_loop(rx, tui_state).await;
+    start_display_loop(rx, tui_state, terminal);
+    eprintln!("run ended");
 }
 
-async fn start_key_monitoring_loop(tx: Sender<TuiEvent>) {
-    let stdin = io::stdin();
-    for key in stdin.keys().flatten() {
-        tx.try_send(TuiEvent::Input(key))
-            .expect("unbound channels should never be full");
-    }
-}
-
-// continuously update display
-async fn start_event_loop(tui_state: Arc<RwLock<TuiState>>) {
-    // Terminal initialization
-    let mut terminal = Terminal::new(TermionBackend::new(AlternateScreen::from(
-        MouseTerminal::from(io::stdout().into_raw_mode().expect("could not get stdout in raw mode")),
-    )))
-    .expect("failed to initiate terminal from backend");
-
-    // Main loop
-    loop {
-        let app = tui_state.read().await;
+// draw on display
+fn draw_screen(tui_state: Arc<RwLock<TuiState>>, terminal: &mut TerminalT) {
+    
+        let app = task::block_on(tui_state.read());
         terminal
             .draw(|f| {
                 let size = f.size();
@@ -179,15 +168,22 @@ async fn start_event_loop(tui_state: Arc<RwLock<TuiState>>) {
                 f.render_widget(outputs_list, chunks[1]);
             })
             .unwrap();
+}
+
+async fn start_key_monitoring_loop(tx: Sender<TuiEvent>) {
+    let stdin = io::stdin();
+    for key in stdin.keys().flatten() {
+        tx.try_send(TuiEvent::Input(key))
+            .expect("unbound channels should never be full");
     }
 }
 
 // react to the events
-async fn start_display_loop(rx: Receiver<TuiEvent>, tui_state: Arc<RwLock<TuiState>>) {
+fn start_display_loop(rx: Receiver<TuiEvent>, tui_state: Arc<RwLock<TuiState>>, mut terminal: TerminalT) {
     loop {
-        match timeout(Duration::from_millis(250), rx.recv()).await {
+        match task::block_on(timeout(Duration::from_millis(250), rx.recv())) {
             Ok(Ok(event)) => {
-                let mut app = tui_state.write().await;
+                let mut app = task::block_on(tui_state.write());
                 match event {
                     TuiEvent::TabListChanged(titles) => {
                         app.tabs = titles.iter().map(|title| TabState::build(title.clone())).collect();
@@ -218,5 +214,6 @@ async fn start_display_loop(rx: Receiver<TuiEvent>, tui_state: Arc<RwLock<TuiSta
             Ok(Err(_)) => return,
             Err(_) => {}
         }
+        draw_screen(tui_state.clone(), &mut terminal)
     }
 }
