@@ -15,9 +15,24 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use async_std::{channel::{Receiver, Sender}, future::timeout, sync::RwLock, task};
-use std::{io::{self, Stdout}, sync::Arc, time::Duration};
-use termion::{event::Key, input::{MouseTerminal, TermRead}, raw::{IntoRawMode, RawTerminal}, screen::AlternateScreen};
+use async_std::{
+    channel::{Receiver, Sender},
+    future::timeout,
+    sync::RwLock,
+    task,
+};
+use std::{
+    collections::VecDeque,
+    io::{self, Stdout},
+    sync::Arc,
+    time::Duration,
+};
+use termion::{
+    event::Key,
+    input::{MouseTerminal, TermRead},
+    raw::{IntoRawMode, RawTerminal},
+    screen::AlternateScreen,
+};
 use tui::{
     backend::TermionBackend,
     layout::{Constraint, Corner, Direction, Layout},
@@ -27,50 +42,20 @@ use tui::{
     Terminal,
 };
 
-#[derive(Clone)]
+// terminal type to be passed around
+type TerminalT = Terminal<TermionBackend<AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>>>;
+
+// severity of messages for display purposes
+#[derive(Clone, Debug)]
 pub(crate) enum Severity {
+    // information, messages from stdout
     Info,
+
+    // error messages from stderr
     Error,
+
+    // runner generated messages
     System,
-}
-
-struct TabState {
-    pub title: String,
-    pub content: Vec<(Severity, String)>,
-}
-
-impl TabState {
-    fn build(title: String) -> TabState {
-        TabState {
-            title,
-            content: Vec::new()
-        }
-    }
-}
-
-struct TuiState {
-    tabs: Vec<TabState>,
-    index: usize,
-}
-
-impl TuiState {
-    fn build(titles: Vec<String>) -> TuiState {
-        TuiState {
-            tabs: titles.into_iter().map(|title| { TabState::build(title) }).collect(),
-            index: 0,
-        }
-    }
-    fn next(&mut self) {
-        self.index = (self.index + 1) % self.tabs.len();
-    }
-
-    fn previous(&mut self) {
-        if self.index > 0 {
-            self.index -= 1;
-        } else {
-            self.index = self.tabs.len() - 1;
-        }
-    }
 }
 
 // All possible events that should have tui react to
@@ -95,7 +80,65 @@ pub(crate) enum TuiEvent {
     Input(Key),
 }
 
-type TerminalT = Terminal<TermionBackend<AlternateScreen<MouseTerminal<RawTerminal<Stdout>>>>>;
+// Entire state of Tui
+struct TuiState {
+    // tabs, one for each command
+    tabs: Vec<TabState>,
+
+    // currently active tab
+    index: usize,
+}
+
+impl TuiState {
+    // create entire state from list of commands
+    fn build(titles: Vec<String>) -> TuiState {
+        TuiState {
+            tabs: titles.into_iter().map(TabState::build).collect(),
+            index: 0,
+        }
+    }
+
+    // switch to next tab
+    fn next(&mut self) {
+        self.index = (self.index + 1) % self.tabs.len();
+    }
+
+    // switch to previous tab
+    fn previous(&mut self) {
+        if self.index > 0 {
+            self.index -= 1;
+        } else {
+            self.index = self.tabs.len() - 1;
+        }
+    }
+}
+
+// Info about single tab
+struct TabState {
+    // tab title
+    pub title: String,
+
+    // messages to display in tab
+    pub content: VecDeque<(Severity, String)>,
+}
+
+impl TabState {
+    // build tab from title
+    fn build(title: String) -> TabState {
+        TabState {
+            title,
+            content: VecDeque::new(),
+        }
+    }
+
+    // adds message to the list, cleans old ones
+    fn add_message(&mut self, severity: Severity, text: String) {
+        self.content.push_back((severity, text));
+        while self.content.len() > 100 {
+            self.content.pop_front();
+        }
+    }
+}
 
 // tui thread. first to start, last to quit
 pub(crate) async fn run(tx: Sender<TuiEvent>, rx: Receiver<TuiEvent>) {
@@ -105,7 +148,6 @@ pub(crate) async fn run(tx: Sender<TuiEvent>, rx: Receiver<TuiEvent>) {
     let backend = TermionBackend::new(stdout);
     let terminal = Terminal::new(backend).unwrap();
 
-
     let tui_state = Arc::new(RwLock::new(TuiState::build(Vec::new())));
     task::spawn(start_key_monitoring_loop(tx));
     start_display_loop(rx, tui_state, terminal);
@@ -114,62 +156,68 @@ pub(crate) async fn run(tx: Sender<TuiEvent>, rx: Receiver<TuiEvent>) {
 
 // draw on display
 fn draw_screen(tui_state: Arc<RwLock<TuiState>>, terminal: &mut TerminalT) {
-    
-        let app = task::block_on(tui_state.read());
-        terminal
-            .draw(|f| {
-                let size = f.size();
-                let chunks = Layout::default()
-                    .direction(Direction::Vertical)
-                    .margin(1)
-                    .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
-                    .split(size);
+    let app = task::block_on(tui_state.read());
+    terminal
+        .draw(|f| {
+            let size = f.size();
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(1)
+                .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+                .split(size);
 
-                let block =
-                    Block::default().style(Style::default().bg(Color::Black).fg(Color::Cyan));
-                f.render_widget(block, size);
-                let titles = app
-                    .tabs.iter()
-                    .map(|t| Spans::from(vec![Span::styled(&t.title, Style::default().fg(Color::Cyan))]))
-                    .collect();
-                let tabs = Tabs::new(titles)
-                    .block(Block::default().borders(Borders::ALL).title("Commands"))
-                    .select(app.index)
-                    .style(Style::default().fg(Color::Cyan))
-                    .highlight_style(
-                        Style::default()
-                            .add_modifier(Modifier::BOLD)
-                            .fg(Color::Magenta),
-                    );
-                f.render_widget(tabs, chunks[0]);
+            let block = Block::default().style(Style::default().bg(Color::Black).fg(Color::Cyan));
+            f.render_widget(block, size);
+            let titles = app
+                .tabs
+                .iter()
+                .map(|t| {
+                    Spans::from(vec![Span::styled(
+                        &t.title,
+                        Style::default().fg(Color::Cyan),
+                    )])
+                })
+                .collect();
+            let tabs = Tabs::new(titles)
+                .block(Block::default().borders(Borders::ALL).title("Commands"))
+                .select(app.index)
+                .style(Style::default().fg(Color::Cyan))
+                .highlight_style(
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(Color::Magenta),
+                );
+            f.render_widget(tabs, chunks[0]);
 
-                let messages: Vec<ListItem> = app.tabs[app.index].content
-                    .iter()
-                    .rev()
-                    .map(|(severity, text)| match severity {
-                        Severity::Info => ListItem::new(Spans::from(vec![Span::styled(
-                            text,
-                            Style::default().fg(Color::White),
-                        )])),
-                        Severity::Error => ListItem::new(Spans::from(vec![Span::styled(
-                            text,
-                            Style::default().fg(Color::Magenta),
-                        )])),
-                        Severity::System => ListItem::new(Spans::from(vec![Span::styled(
-                            text,
-                            Style::default().fg(Color::Cyan),
-                        )])),
-                    })
-                    .collect();
+            let messages: Vec<ListItem> = app.tabs[app.index]
+                .content
+                .iter()
+                .rev()
+                .map(|(severity, text)| match severity {
+                    Severity::Info => ListItem::new(Spans::from(vec![Span::styled(
+                        text,
+                        Style::default().fg(Color::White),
+                    )])),
+                    Severity::Error => ListItem::new(Spans::from(vec![Span::styled(
+                        text,
+                        Style::default().fg(Color::Magenta),
+                    )])),
+                    Severity::System => ListItem::new(Spans::from(vec![Span::styled(
+                        text,
+                        Style::default().fg(Color::Cyan),
+                    )])),
+                })
+                .collect();
 
-                let outputs_list = List::new(messages)
-                    .block(Block::default().borders(Borders::ALL).title("Output"))
-                    .start_corner(Corner::BottomLeft);
-                f.render_widget(outputs_list, chunks[1]);
-            })
-            .unwrap();
+            let outputs_list = List::new(messages)
+                .block(Block::default().borders(Borders::ALL).title("Output"))
+                .start_corner(Corner::BottomLeft);
+            f.render_widget(outputs_list, chunks[1]);
+        })
+        .unwrap();
 }
 
+// monitor key presses from users
 async fn start_key_monitoring_loop(tx: Sender<TuiEvent>) {
     let stdin = io::stdin();
     for key in stdin.keys().flatten() {
@@ -179,28 +227,34 @@ async fn start_key_monitoring_loop(tx: Sender<TuiEvent>) {
 }
 
 // react to the events
-fn start_display_loop(rx: Receiver<TuiEvent>, tui_state: Arc<RwLock<TuiState>>, mut terminal: TerminalT) {
+fn start_display_loop(
+    rx: Receiver<TuiEvent>,
+    tui_state: Arc<RwLock<TuiState>>,
+    mut terminal: TerminalT,
+) {
     loop {
         match task::block_on(timeout(Duration::from_millis(250), rx.recv())) {
             Ok(Ok(event)) => {
                 let mut app = task::block_on(tui_state.write());
                 match event {
                     TuiEvent::TabListChanged(titles) => {
-                        app.tabs = titles.iter().map(|title| TabState::build(title.clone())).collect();
+                        app.tabs = titles
+                            .iter()
+                            .map(|title| TabState::build(title.clone()))
+                            .collect();
                     }
                     TuiEvent::CommandStarted(idx) => {
-                        app.tabs[idx].content
-                            .push((Severity::System, String::from("Command Started")));
+                        app.tabs[idx]
+                            .add_message(Severity::System, String::from("Command Started"));
                     }
                     TuiEvent::NewStdoutMessage(idx, message) => {
-                        app.tabs[idx].content.push((Severity::Info, message));
+                        app.tabs[idx].add_message(Severity::Info, message);
                     }
                     TuiEvent::NewStderrMessage(idx, message) => {
-                        app.tabs[idx].content.push((Severity::Error, message));
+                        app.tabs[idx].add_message(Severity::Error, message);
                     }
                     TuiEvent::CommandEnded(idx) => {
-                        app.tabs[idx].content
-                            .push((Severity::System, String::from("Command ended")));
+                        app.tabs[idx].add_message(Severity::System, String::from("Command ended"));
                     }
                     TuiEvent::Input(key) => {
                         match key {

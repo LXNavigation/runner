@@ -29,7 +29,6 @@ use futures::future::join_all;
 
 // main run called from main function
 pub fn run(config: String) {
-
     // parse config file
     let config = match Config::create(config) {
         Ok(config) => config,
