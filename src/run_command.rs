@@ -49,12 +49,12 @@ pub(crate) async fn run_command(
     let exit_status = process
         .wait()
         .expect("Process owned by runner killed from outside");
+    tx.try_send(TuiEvent::CommandEnded(id))
+        .expect("unbound channel should never be full");
     if exit_status != ExitStatus::Exited(0u32) {
         crate::monitor_stdout::save_to_file(buffer, process_folder);
         return Err(exit_status);
     }
-    tx.try_send(TuiEvent::CommandEnded(id))
-        .expect("unbound channel should never be full");
     Ok(())
 }
 
