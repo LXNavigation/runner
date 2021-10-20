@@ -78,6 +78,9 @@ pub(crate) enum TuiEvent {
 
     // user pressed a key
     Input(Key),
+
+    // runner messages connected to command
+    System(usize, String),
 }
 
 // Entire state of Tui
@@ -262,6 +265,9 @@ fn start_display_loop(
                             Key::Left => app.previous(),
                             _ => {}
                         };
+                    }
+                    TuiEvent::System(idx, message) => {
+                        app.tabs[idx].add_message(Severity::System, message);
                     }
                 }
             }

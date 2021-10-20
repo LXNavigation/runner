@@ -98,3 +98,5 @@ Runner takes a json formatted configuration file. A file should look something l
 
  where `config.json` is a path to configuration file we have created.
 
+ Runner is very lightweight and heavily multithreaded. On some systems and configurations the default number of threads might be too small to support all monitoring jobs required. If you encounter any problems such as tui freezing, try to set environmental variable `ASYNC_STD_THREAD_COUNT` to a bigger positive numbers.
+
