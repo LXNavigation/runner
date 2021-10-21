@@ -54,12 +54,13 @@ pub fn run(config: String) {
     std::fs::create_dir_all(&config.crash_path).expect("Could not create crash path, aborting...");
 
     // execute all commands, saving handles
-    let mut handles = Vec::new();
-    for (id, command) in config.commands.into_iter().enumerate() {
-        if let Some(handle) = execute_command(command, config.crash_path.clone(), tx.clone(), id) {
-            handles.push(handle);
-        }
-    }
+    let handles = config
+        .commands
+        .into_iter()
+        .enumerate()
+        .map(|(id, command)| execute_command(command, config.crash_path.clone(), tx.clone(), id))
+        .flatten()
+        .collect::<Vec<_>>();
 
     // wait for all commands to finish
     task::block_on(join_all(handles));
@@ -114,14 +115,10 @@ fn run_until_success(
     id: usize,
 ) -> JoinHandle<()> {
     task::spawn(async move {
-        loop {
-            if let Ok(()) =
-                crate::run_command::run_command(command.clone(), error_path.clone(), tx.clone(), id)
-                    .await
-            {
-                return;
-            }
-        }
+        while crate::run_command::run_command(command.clone(), error_path.clone(), tx.clone(), id)
+            .await
+            .is_err()
+        {}
     })
 }
 
@@ -133,14 +130,10 @@ fn run_until_success_and_wait(
     id: usize,
 ) {
     task::block_on(async move {
-        loop {
-            if let Ok(()) =
-                crate::run_command::run_command(command.clone(), error_path.clone(), tx.clone(), id)
-                    .await
-            {
-                return;
-            }
-        }
+        while crate::run_command::run_command(command.clone(), error_path.clone(), tx.clone(), id)
+            .await
+            .is_err()
+        {}
     });
 }
 

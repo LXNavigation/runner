@@ -33,7 +33,6 @@ fn main() {
 }
 
 // parse arguments using clap
-//
 // runner takes one mandatory argument, path to a config file
 fn parse_args() -> String {
     let matches = App::new("Runner")

@@ -38,17 +38,20 @@ pub(crate) async fn run_command(
         start.format("%Y-%m-%d_%H:%M:%S")
     );
 
-    let stderr = process.stderr.take().unwrap();
     task::spawn(crate::monitor_stderr::monitor_stderr(
         process_folder.clone(),
-        stderr,
+        process.stderr.take().unwrap(),
         tx.clone(),
         id,
     ));
 
     let mut buffer = LogT::with_capacity(config.stdout_history);
-    let stdout = process.stdout.take().unwrap();
-    crate::monitor_stdout::monitor_stdout(&mut buffer, stdout, tx.clone(), id);
+    crate::monitor_stdout::monitor_stdout(
+        &mut buffer,
+        process.stdout.take().unwrap(),
+        tx.clone(),
+        id,
+    );
 
     let exit_status = process
         .wait()

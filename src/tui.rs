@@ -94,6 +94,7 @@ fn start_display_loop(rx: Receiver<TuiEvent>) {
     }
 }
 
+// updates tui data based on input or times out silently in 250 ms
 fn update_tui_state(tui_state: &mut TuiState, rx: &Receiver<TuiEvent>) {
     if let Ok(Ok(event)) = task::block_on(timeout(Duration::from_millis(250), rx.recv())) {
         match event {
@@ -124,6 +125,7 @@ fn update_tui_state(tui_state: &mut TuiState, rx: &Receiver<TuiEvent>) {
     }
 }
 
+// creates tabs on top of screen
 fn create_tabs(tui_state: &TuiState) -> Tabs {
     let titles = tui_state
         .tabs
@@ -146,6 +148,7 @@ fn create_tabs(tui_state: &TuiState) -> Tabs {
         )
 }
 
+// draws output in the bottom of the screen
 fn create_output(tui_state: &TuiState) -> List {
     let messages: Vec<ListItem> = tui_state.tabs[tui_state.index]
         .content
