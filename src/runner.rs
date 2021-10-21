@@ -15,17 +15,17 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use crate::{
-    command_config::{CommandConfig, CommandMode},
-    config::Config,
-    tui::TuiEvent,
-};
-
 use async_std::{
     channel::{self, Sender},
     task::{self, JoinHandle},
 };
 use futures::future::join_all;
+
+use crate::{
+    command_config::{CommandConfig, CommandMode},
+    config::Config,
+    tui_state::TuiEvent,
+};
 
 // main run called from main function
 pub fn run(config: String) {

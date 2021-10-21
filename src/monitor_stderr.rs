@@ -15,15 +15,13 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+use crate::tui_state::TuiEvent;
 use async_std::channel::Sender;
+use chrono::Utc;
 use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, Write},
 };
-
-use chrono::Utc;
-
-use crate::tui::TuiEvent;
 
 // runs another thread to monitor standard err. all outputs are stored in stderr.txt file in folder
 pub(crate) async fn monitor_stderr(

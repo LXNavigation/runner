@@ -19,7 +19,7 @@ use async_std::{channel::Sender, task};
 use chrono::{DateTime, Utc};
 use subprocess::{ExitStatus, Popen, PopenConfig, Redirection};
 
-use crate::{command_config::CommandConfig, monitor_stdout::LogT, tui::TuiEvent};
+use crate::{command_config::CommandConfig, monitor_stdout::LogT, tui_state::TuiEvent};
 
 // runs command, starting stdout and stderr monitoring
 pub(crate) async fn run_command(
@@ -30,12 +30,11 @@ pub(crate) async fn run_command(
 ) -> Result<(), ExitStatus> {
     tx.try_send(TuiEvent::CommandStarted(id))
         .expect("unbound channel should never be full");
-    let name = config.name;
     let (mut process, start) = run(config.command, config.args);
     let process_folder = format!(
         "{}/{}-{}",
         error_path,
-        name,
+        config.name,
         start.format("%Y-%m-%d_%H:%M:%S")
     );
 

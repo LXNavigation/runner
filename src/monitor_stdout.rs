@@ -23,7 +23,7 @@ use std::{
     io::{BufRead, BufReader, Write},
 };
 
-use crate::tui::TuiEvent;
+use crate::tui_state::TuiEvent;
 
 // log type for stderr
 pub(crate) type LogT = CircularQueue<(DateTime<Utc>, String)>;
