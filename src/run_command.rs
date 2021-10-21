@@ -30,7 +30,7 @@ pub(crate) async fn run_command(
 ) -> Result<(), ExitStatus> {
     tx.try_send(TuiEvent::CommandStarted(id))
         .expect("unbound channel should never be full");
-    let name = config.get_name();
+    let name = config.name;
     let (mut process, start) = run(config.command, config.args);
     let process_folder = error_path + "/" + &name + "-" + &start.to_rfc3339();
 

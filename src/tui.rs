@@ -78,7 +78,6 @@ pub(crate) enum TuiEvent {
 
     // user pressed a key
     Input(Key),
-
     // runner messages connected to command
     //System(usize, String),
 }
@@ -265,10 +264,9 @@ fn start_display_loop(
                             Key::Left => app.previous(),
                             _ => {}
                         };
-                    }
-                    //TuiEvent::System(idx, message) => {
-                    //    app.tabs[idx].add_message(Severity::System, message);
-                    //}
+                    } //TuiEvent::System(idx, message) => {
+                      //    app.tabs[idx].add_message(Severity::System, message);
+                      //}
                 }
             }
             Ok(Err(_)) => return,

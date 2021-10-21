@@ -43,14 +43,15 @@ Runner takes a json formatted configuration file. A file should look something l
 ```json
 {
     "application": "runner",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "crash path": "./err",
     "commands": [
         {
             "command": "./updater/updater",
             "args": [ "-all" ],
             "mode": "run until success",
-            "stdout history": 100
+            "stdout history": 100,
+            "name": "awesome updater"
         },
         {
             "command": "./application/app",
@@ -87,6 +88,8 @@ Runner takes a json formatted configuration file. A file should look something l
  Default is `"run until success"`
 
  `stdout history` Number of lines of stdout to store in case of the crash. Larger numbers take more memory but can be useful when debugging any crashes that occurred. Default is 1000.
+
+ `name` Runner tries to provide meaningful names for running processes from command field. However in cases where multiple python scripts are being run all of them will be shown as python. Name is optional field with a custom name to be shown both in tabs and as name in error folders.
 
  ## Running
 

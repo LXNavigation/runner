@@ -1,4 +1,3 @@
-
 use std::{thread::sleep, time::Duration};
 
 fn main() {

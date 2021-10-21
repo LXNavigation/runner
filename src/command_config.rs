@@ -60,27 +60,23 @@ pub(crate) struct CommandConfig {
 
     // mode to run application in
     pub(crate) mode: CommandMode,
+
+    // name given to application
+    pub(crate) name: String,
 }
 
 impl CommandConfig {
     // parses given app configuration, returning AppConfig on success, or error on failure
     pub(crate) fn parse_config(json: &serde_json::Value) -> Result<CommandConfig, ConfigError> {
+        let command = CommandConfig::parse_command(json)?;
         Ok(CommandConfig {
-            command: CommandConfig::parse_command(json)?,
+            command: command.clone(),
             args: CommandConfig::parse_args(json)?,
             stdout_history: CommandConfig::parse_history(json)?,
             mode: CommandConfig::parse_mode(json)?,
+            name: CommandConfig::parse_name(json)
+                .unwrap_or_else(|| CommandConfig::get_name(&command)),
         })
-    }
-
-    // get name from command. should extract file name from executable path
-    pub(crate) fn get_name(&self) -> String {
-        Path::new(&self.command)
-            .file_stem()
-            .unwrap_or_else(|| panic!("'{}' is not a valid command!", &self.command))
-            .to_str()
-            .unwrap()
-            .to_owned()
     }
 
     // parses command part of configuration. This field must be present in configuration
@@ -176,6 +172,23 @@ impl CommandConfig {
             )),
         }
     }
+
+    // parses name if given. Name will be calculated from command if it is not
+    fn parse_name(json: &serde_json::Value) -> Option<String> {
+        json.get("name")
+            .and_then(|val| val.as_str())
+            .map(|s| s.to_owned())
+    }
+
+    // get name from command. should extract file name from executable path
+    fn get_name(command: &str) -> String {
+        Path::new(&command)
+            .file_stem()
+            .unwrap_or_else(|| panic!("'{}' is not a valid command!", &command))
+            .to_str()
+            .unwrap()
+            .to_owned()
+    }
 }
 
 #[cfg(test)]
@@ -219,21 +232,21 @@ mod tests {
 
     #[test]
     fn test_get_name() {
-        let mut cfg = CommandConfig {
-            command: String::from("ls"),
-            args: Vec::new(),
-            stdout_history: 100,
-            mode: CommandMode::KeepAlive,
-        };
-        assert_eq!(cfg.get_name(), "ls");
-
-        cfg.command = String::from("test.exe");
-        assert_eq!(cfg.get_name(), "test");
-
-        cfg.command = String::from("path/test.exe");
-        assert_eq!(cfg.get_name(), "test");
-
-        cfg.command = String::from("path/test");
-        assert_eq!(cfg.get_name(), "test");
+        assert_eq!(
+            CommandConfig::get_name(&String::from("ls")),
+            String::from("ls")
+        );
+        assert_eq!(
+            CommandConfig::get_name(&String::from("test.exe")),
+            String::from("test")
+        );
+        assert_eq!(
+            CommandConfig::get_name(&String::from("path/test.exe")),
+            String::from("test")
+        );
+        assert_eq!(
+            CommandConfig::get_name(&String::from("path/test")),
+            String::from("test")
+        );
     }
 }

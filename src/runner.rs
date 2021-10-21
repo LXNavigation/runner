@@ -45,7 +45,7 @@ pub fn run(config: String) {
         config
             .commands
             .iter()
-            .map(|command| command.get_name())
+            .map(|command| command.name.clone())
             .collect(),
     ))
     .expect("unbound channel should never be full");
