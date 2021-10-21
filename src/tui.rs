@@ -80,7 +80,7 @@ pub(crate) enum TuiEvent {
     Input(Key),
 
     // runner messages connected to command
-    System(usize, String),
+    //System(usize, String),
 }
 
 // Entire state of Tui
@@ -266,9 +266,9 @@ fn start_display_loop(
                             _ => {}
                         };
                     }
-                    TuiEvent::System(idx, message) => {
-                        app.tabs[idx].add_message(Severity::System, message);
-                    }
+                    //TuiEvent::System(idx, message) => {
+                    //    app.tabs[idx].add_message(Severity::System, message);
+                    //}
                 }
             }
             Ok(Err(_)) => return,
