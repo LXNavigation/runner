@@ -32,7 +32,12 @@ pub(crate) async fn run_command(
         .expect("unbound channel should never be full");
     let name = config.name;
     let (mut process, start) = run(config.command, config.args);
-    let process_folder = error_path + "/" + &name + "-" + &start.to_rfc3339();
+    let process_folder = format!(
+        "{}/{}-{}",
+        error_path,
+        name,
+        start.format("%Y-%m-%d_%H:%M:%S")
+    );
 
     let stderr = process.stderr.take().unwrap();
     task::spawn(crate::monitor_stderr::monitor_stderr(

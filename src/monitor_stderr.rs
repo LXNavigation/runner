@@ -57,6 +57,6 @@ fn append_to_file(err_path: String, err_string: String) {
         .open(err_path + "/stderr.txt")
         .unwrap();
 
-    writeln!(file, "{} | {}", Utc::now().to_rfc3339(), err_string)
+    writeln!(file, "{} | {}", Utc::now().format("%H:%M:%S"), err_string)
         .expect("could not write to stderr file");
 }

@@ -59,7 +59,7 @@ pub(crate) fn save_to_file(buffer: LogT, err_path: String) {
         .unwrap();
 
     for line in buffer.iter() {
-        writeln!(file, "{} | {}", line.0.to_rfc3339(), line.1)
+        writeln!(file, "{} | {}", line.0.format("%H:%M:%S"), line.1)
             .expect("could not write to stdout file");
     }
 }
