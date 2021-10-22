@@ -1,8 +1,8 @@
- stages:
+stages:
   - test
-  - pages
+  - deploy
 
- nightly:cargo:
+nightly:cargo:
   image: rustdocker/rust:nightly
   stage: test
   script:
