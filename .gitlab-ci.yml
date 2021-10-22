@@ -2,14 +2,14 @@ stages:
   - test
   - deploy
 
-test:
+nightly:cargo:
   image: rustdocker/rust:nightly
   stage: test
   script:
     - cargo test --verbose --jobs 1
     - cargo build
 
-deploy:
+pages:
   image: alpine:latest
   stage: deploy
   script:
