@@ -1,3 +1,7 @@
+ stages:
+  - test
+  - pages
+
  nightly:cargo:
   image: rustdocker/rust:nightly
   stage: test
