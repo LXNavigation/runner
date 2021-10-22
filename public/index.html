@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel='stylesheet' href='style.css'>
+</head>
+
+<body>
+
+    <h1>Everdream Runner</h1>
+    <p id='subtitle'><i>Fully configurable application launcher with monitoring capabilities.</i></p>
+
+    <a href='https://gitlab.com/everdream/runner'>
+        <div id='source'>Gitlab</div>
+    </a>
+
+    <h2>Features</h2>
+
+    <div class='feature'>
+        <h3>Terminal UI</h3>
+
+        <p>Interactive color interface right in terminal, working on headless operating systems.</p>
+    </div>
+
+    <div class='feature'>
+        <h3>Fully Configurable</h3>
+
+        <p>Paths, arguments and modes are all fully configurable. Config file is a simple human editable json file.</p>
+    </div>
+
+    <div class='feature'>
+        <h3>Monitoring</h3>
+
+        <p>Everything reported on stderr is stored into a file, in case of crash part of stdout is stored too, helping
+            debugging efforts.</p>
+    </div>
+
+    <div class='feature'>
+        <h3>Keep Alive</h3>
+
+        <p>Runner can restart the command in case of crash or just keeps it alive as long as it is running.</p>
+    </div>
+
+    <div class='feature'>
+        <h3>Open Source</h3>
+
+        <p>Runner is free and open source, coded in rust for performance and stability.</p>
+    </div>
+
+    <div class='feature'>
+        <h3>Safe</h3>
+
+        <p>Runner works offline and does not "ping home" at all. Codebase tries to be as lean as possible to avoid
+            any bugs and lower attack surface.</p>
+    </div>
+
+    <h2>Looks</h2>
+
+    <img src="screenshot1.png" alt="runner screenshot 1" width="512px">
+    <img src="screenshot2.png" alt="runner screenshot 2" width="512px">
+</body>
+
+</html>
