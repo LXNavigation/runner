@@ -4,3 +4,14 @@
   script:
     - cargo test --verbose --jobs 1
     - cargo build
+
+pages:
+  image: alpine:latest
+  stage: deploy
+  script:
+  - echo 'Nothing to do...'
+  artifacts:
+    paths:
+    - public
+  only:
+  - master

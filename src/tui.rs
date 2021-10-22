@@ -130,12 +130,7 @@ fn create_tabs(tui_state: &TuiState) -> Tabs {
     let titles = tui_state
         .tabs
         .iter()
-        .map(|t| {
-            Spans::from(vec![Span::styled(
-                &t.title,
-                Style::default().fg(Color::Cyan),
-            )])
-        })
+        .map(|t| Spans::from(Span::styled(&t.title, Style::default().fg(Color::Cyan))))
         .collect();
     Tabs::new(titles)
         .block(Block::default().borders(Borders::ALL).title("Commands"))
@@ -155,18 +150,11 @@ fn create_output(tui_state: &TuiState) -> List {
         .iter()
         .rev()
         .map(|(severity, text)| match severity {
-            Severity::Info => ListItem::new(Spans::from(vec![Span::styled(
-                text,
-                Style::default().fg(Color::White),
-            )])),
-            Severity::Error => ListItem::new(Spans::from(vec![Span::styled(
-                text,
-                Style::default().fg(Color::Magenta),
-            )])),
-            Severity::System => ListItem::new(Spans::from(vec![Span::styled(
-                text,
-                Style::default().fg(Color::Cyan),
-            )])),
+            Severity::Info => ListItem::new(Span::styled(text, Style::default().fg(Color::White))),
+            Severity::Error => {
+                ListItem::new(Span::styled(text, Style::default().fg(Color::Magenta)))
+            }
+            Severity::System => ListItem::new(Span::styled(text, Style::default().fg(Color::Cyan))),
         })
         .collect();
 

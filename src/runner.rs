@@ -19,7 +19,6 @@ use async_std::{
     channel::{self, Sender},
     task::{self, JoinHandle},
 };
-use futures::future::join_all;
 
 use crate::{
     command_config::{CommandConfig, CommandMode},
@@ -63,7 +62,7 @@ pub fn run(config: String) {
         .collect::<Vec<_>>();
 
     // wait for all commands to finish
-    task::block_on(join_all(handles));
+    handles.into_iter().for_each(|handle| task::block_on(handle) );
     task::block_on(tui_handle);
 }
 
