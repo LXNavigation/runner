@@ -15,6 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+use std::num::TryFromIntError;
+
 use clap::crate_version;
 
 use crate::command_config::CommandConfig;
@@ -31,6 +33,25 @@ pub(crate) enum ConfigError {
     MissingCommandsArray,
     WrongCommandsFormat,
     BadCommandConfig(String, String),
+    UnsupportedSystem(TryFromIntError),
+}
+
+impl std::convert::From<std::io::Error> for ConfigError {
+    fn from(io_error: std::io::Error) -> Self {
+        ConfigError::FileOpenError(io_error)
+    }
+}
+
+impl std::convert::From<TryFromIntError> for ConfigError {
+    fn from(from_int_error: TryFromIntError) -> Self {
+        ConfigError::UnsupportedSystem(from_int_error)
+    }
+}
+
+impl std::convert::From<serde_json::Error> for ConfigError {
+    fn from(json_error: serde_json::Error) -> Self {
+        ConfigError::FileSerializationError(json_error)
+    }
 }
 
 // All config data parsed out
@@ -43,31 +64,21 @@ pub(crate) struct Config {
 impl Config {
     // creates parsed out configuration from a path to configuration file and reports on any errors
     pub(crate) fn create(path: String) -> Result<Config, ConfigError> {
-        let file = match std::fs::File::open(&path) {
-            Ok(file) => file,
-            Err(error) => return Err(ConfigError::FileOpenError(error)),
-        };
-        let json: serde_json::Value = match serde_json::from_reader(file) {
-            Ok(json) => json,
-            Err(error) => return Err(ConfigError::FileSerializationError(error)),
-        };
+        let file = std::fs::File::open(&path)?;
+        let json = serde_json::from_reader(file)?;
         Config::verify_config(&json)?;
         Config::parse_config(&json)
     }
 
     // verifies that config fits application name and version
     fn verify_config(json: &serde_json::Value) -> Result<(), ConfigError> {
-        let application = match json.get("application") {
-            Some(app) => app,
-            None => return Err(ConfigError::MissingApplicationName),
-        };
+        let application = json
+            .get("application")
+            .ok_or(ConfigError::MissingApplicationName)?;
         if application != "runner" {
             return Err(ConfigError::WrongApplicationName(application.to_string()));
         }
-        let version = match json.get("version") {
-            Some(ver) => ver,
-            None => return Err(ConfigError::MissingVersion),
-        };
+        let version = json.get("version").ok_or(ConfigError::MissingVersion)?;
         if version != crate_version!() {
             return Err(ConfigError::WrongVersion(version.to_string()));
         }
@@ -84,15 +95,10 @@ impl Config {
 
     // parses commands part of configuration file. Passes to CommandConfig
     fn parse_commands(json: &serde_json::Value) -> Result<Vec<CommandConfig>, ConfigError> {
-        let commands = match json.get("commands") {
-            Some(commands) => commands,
-            None => return Err(ConfigError::MissingCommandsArray),
-        };
-        let commands = match commands.as_array() {
-            Some(commands) => commands,
-            None => return Err(ConfigError::WrongCommandsFormat),
-        };
-        commands
+        json.get("commands")
+            .ok_or(ConfigError::MissingCommandsArray)?
+            .as_array()
+            .ok_or(ConfigError::WrongCommandsFormat)?
             .iter()
             .map(CommandConfig::parse_config)
             .into_iter()
@@ -101,18 +107,14 @@ impl Config {
 
     // parses crash path specified in config file
     fn parse_crash_path(json: &serde_json::Value) -> Result<String, ConfigError> {
-        match json.get("crash path") {
-            Some(path) => match path.as_str() {
-                Some(path) => Ok(path.to_owned()),
-                None => Err(ConfigError::BadCommandConfig(
-                    String::from("crash path"),
-                    json.to_string(),
-                )),
-            },
-            None => Err(ConfigError::BadCommandConfig(
-                String::from("crash path"),
-                json.to_string(),
-            )),
-        }
+        json.get("crash path")
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(String::from("crash path"), json.to_string())
+            })?
+            .as_str()
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(String::from("crash path"), json.to_string())
+            })
+            .map(|path| path.to_owned())
     }
 }

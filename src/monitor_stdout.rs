@@ -52,14 +52,4 @@ pub(crate) fn save_to_file(buffer: LogT, err_path: String) {
         return;
     }
     std::fs::create_dir_all(&err_path).expect("Could not create crash path, aborting...");
-    let mut file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(err_path + "/stdout.txt")
-        .unwrap();
-
-    for line in buffer.iter() {
-        writeln!(file, "{} | {}", line.0.format("%H:%M:%S"), line.1)
-            .expect("could not write to stdout file");
-    }
 }

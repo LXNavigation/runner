@@ -35,7 +35,7 @@ fn main() {
 // parse arguments using clap
 // runner takes one mandatory argument, path to a config file
 fn parse_args() -> String {
-    let matches = App::new("Runner")
+    App::new("Runner")
         .version(crate_version!())
         .author("Jurij R. <jurij.robba@vernocte.org>")
         .about("Runner and monitoring application")
@@ -48,9 +48,7 @@ fn parse_args() -> String {
                 .takes_value(true)
                 .required(true),
         )
-        .get_matches();
-
-    matches
+        .get_matches()
         .value_of("config")
         .expect("no config file provided, quitting")
         .to_owned()

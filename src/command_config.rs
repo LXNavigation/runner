@@ -15,12 +15,12 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use std::path::Path;
+use std::{num::TryFromIntError, path::Path};
 
 use crate::config::ConfigError;
 
 // default number of lines to store for stdout history
-const DEFAULT_HISTORY: u64 = 1000u64;
+const DEFAULT_HISTORY: usize = 1000usize;
 
 // default mode for application if none specified
 const DEFAULT_MODE: CommandMode = CommandMode::RunUntilSuccess;
@@ -81,96 +81,75 @@ impl CommandConfig {
 
     // parses command part of configuration. This field must be present in configuration
     fn parse_command(json: &serde_json::Value) -> Result<String, ConfigError> {
-        let command = match json.get("command") {
-            Some(cmd) => cmd.as_str(),
-            None => {
-                return Err(ConfigError::BadCommandConfig(
-                    String::from("command"),
-                    json.to_string(),
-                ))
-            }
-        };
-        match command {
-            Some(command) => Ok(String::from(command)),
-            None => Err(ConfigError::BadCommandConfig(
-                String::from("command"),
-                json.to_string(),
-            )),
-        }
+        Ok(json
+            .get("command")
+            .and_then(|command| command.as_str())
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(String::from("command"), json.to_string())
+            })?
+            .to_owned())
     }
 
     // parses command arguments. This field must be present but can be empty array
     fn parse_args(json: &serde_json::Value) -> Result<Vec<String>, ConfigError> {
-        let args = match json.get("args") {
-            Some(args) => args,
-            None => return Ok(Vec::new()),
-        };
-        match args.as_array() {
-            Some(args) => {
-                let args: Option<Vec<String>> = args
-                    .iter()
-                    .map(|e| e.as_str().map(|e| e.to_owned()))
-                    .collect();
-                match args {
-                    Some(args) => Ok(args),
-                    None => Err(ConfigError::BadCommandConfig(
-                        String::from("args"),
-                        json.to_string(),
-                    )),
-                }
-            }
-            None => Err(ConfigError::BadCommandConfig(
-                String::from("args"),
-                json.to_string(),
-            )),
-        }
+        json.get("args").map_or(Ok(Vec::new()), |val| {
+            Ok(val
+                .as_array()
+                .ok_or_else(|| {
+                    ConfigError::BadCommandConfig(String::from("args"), json.to_string())
+                })?
+                .iter()
+                .map(|e| {
+                    e.as_str()
+                        .ok_or_else(|| {
+                            ConfigError::BadCommandConfig(String::from("args"), json.to_string())
+                        })
+                        .unwrap()
+                        .to_owned()
+                })
+                .collect::<Vec<String>>())
+        })
     }
 
     // parses history (number of lines for stdout)
     fn parse_history(json: &serde_json::Value) -> Result<usize, ConfigError> {
-        let mut history = DEFAULT_HISTORY;
-        if let Some(value) = json.get("stdout history") {
-            history = match value.as_u64() {
-                Some(val) => val,
-                None => {
-                    return Err(ConfigError::BadCommandConfig(
-                        String::from("stdout history"),
-                        json.to_string(),
-                    ))
-                }
-            };
-        };
-        Ok(history
-            .try_into()
-            .expect("Could not convert u64 to usize on this system"))
+        json.get("stdout history").map_or_else(
+            || Ok(DEFAULT_HISTORY),
+            |val| {
+                val.as_u64()
+                    .ok_or_else(|| {
+                        ConfigError::BadCommandConfig(
+                            String::from("stdout history"),
+                            json.to_string(),
+                        )
+                    })?
+                    .try_into()
+                    .map_err(|err: TryFromIntError| err.into())
+            },
+        )
     }
 
     // parses mode. Has 5 valid values, everything else should be reported as error
     fn parse_mode(json: &serde_json::Value) -> Result<CommandMode, ConfigError> {
-        let mode = match json.get("mode") {
-            Some(mode) => mode.as_str(),
-            None => return Ok(DEFAULT_MODE),
-        };
-        let mode = match mode {
-            Some(mode) => mode,
-            None => {
-                return Err(ConfigError::BadCommandConfig(
-                    String::from("mode"),
-                    json.to_string(),
-                ))
-            }
-        };
-        match mode {
-            "run once" => Ok(CommandMode::RunOnce),
-            "run once and wait" => Ok(CommandMode::RunOnceAndWait),
-            "run until success" => Ok(CommandMode::RunUntilSuccess),
-            "run until success and wait" => Ok(CommandMode::RunUntilSuccessAndWait),
-            "keep alive" => Ok(CommandMode::KeepAlive),
-            _ => Err(ConfigError::BadCommandConfig(
-                String::from("mode"),
-                json.to_string(),
-            )),
-        }
+        json.get("mode").map_or_else(
+            || Ok(DEFAULT_MODE),
+            |mode| {
+                let mode = mode.as_str().ok_or_else(|| {
+                    ConfigError::BadCommandConfig(String::from("mode"), json.to_string())
+                })?;
+                match mode {
+                    "run once" => Ok(CommandMode::RunOnce),
+                    "run once and wait" => Ok(CommandMode::RunOnceAndWait),
+                    "run until success" => Ok(CommandMode::RunUntilSuccess),
+                    "run until success and wait" => Ok(CommandMode::RunUntilSuccessAndWait),
+                    "keep alive" => Ok(CommandMode::KeepAlive),
+                    _ => Err(ConfigError::BadCommandConfig(
+                        String::from("mode"),
+                        json.to_string(),
+                    )),
+                }
+            },
+        )
     }
 
     // parses name if given. Name will be calculated from command if it is not

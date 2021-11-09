@@ -53,16 +53,14 @@ pub fn run(config: String) {
     std::fs::create_dir_all(&config.crash_path).expect("Could not create crash path, aborting...");
 
     // execute all commands, saving handles
-    let handles = config
+    config
         .commands
         .into_iter()
         .enumerate()
         .map(|(id, command)| execute_command(command, config.crash_path.clone(), tx.clone(), id))
         .flatten()
-        .collect::<Vec<_>>();
+        .for_each(task::block_on);
 
-    // wait for all commands to finish
-    handles.into_iter().for_each(|handle| task::block_on(handle) );
     task::block_on(tui_handle);
 }
 
