@@ -20,7 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 // Configuration error. All possible errors that can happen during the parsing of configuration
 #[derive(Debug)]
 pub(crate) enum ConfigError {
-    FileOpenError(std::io::Error),
+    FileSystemError(std::io::Error),
     FileSerializationError(serde_json::error::Error),
     MissingApplicationName,
     WrongApplicationName(String),
@@ -32,10 +32,37 @@ pub(crate) enum ConfigError {
     UnsupportedSystem(TryFromIntError),
 }
 
+impl std::fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ConfigError::FileSystemError(err) => write!(f, "File system error - {}", err),
+            ConfigError::FileSerializationError(err) => {
+                write!(f, "File serilization error - {}", err)
+            }
+            ConfigError::MissingApplicationName => write!(f, "Missing application name!"),
+            ConfigError::WrongApplicationName(name) => {
+                write!(f, "Wrong application name, got {} instead!", name)
+            }
+            ConfigError::MissingVersion => write!(f, "Missing intended version!"),
+            ConfigError::WrongVersion(version) => {
+                write!(f, "Wrong application version, got {} instead!", version)
+            }
+            ConfigError::MissingCommandsArray => write!(f, "Missing commands array!"),
+            ConfigError::WrongCommandsFormat => write!(f, "Wrong commands array format!"),
+            ConfigError::BadCommandConfig(field, config) => write!(
+                f,
+                "Bad command config! Could not parse {} in {}",
+                field, config
+            ),
+            ConfigError::UnsupportedSystem(_) => write!(f, "Unsuported operatign system!"),
+        }
+    }
+}
+
 // IO error conversion
 impl std::convert::From<std::io::Error> for ConfigError {
     fn from(io_error: std::io::Error) -> Self {
-        ConfigError::FileOpenError(io_error)
+        ConfigError::FileSystemError(io_error)
     }
 }
 

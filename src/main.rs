@@ -32,9 +32,17 @@ use clap::{crate_version, App, Arg};
 use runner_error::{Result, RunnerError};
 
 // main function
-fn main() -> Result<()> {
-    let config = parse_args()?;
-    task::block_on(runner::run(config))
+fn main() {
+    let config = match parse_args() {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("{}", err);
+            return;
+        }
+    };
+    if let Err(err) = task::block_on(runner::run(config)) {
+        eprintln!("{}", err);
+    }
 }
 
 // parse arguments using clap

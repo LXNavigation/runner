@@ -72,7 +72,7 @@ pub(crate) async fn run_command(
     tx.try_send(TuiEvent::CommandEnded(id))?;
     if exit_status != ExitStatus::Exited(0u32) {
         crate::monitor_stdout::save_to_file(buffer, process_folder).await?;
-        return Err(RunnerError::Exit(exit_status));
+        return Err(RunnerError::ExitError(exit_status));
     }
     Ok(())
 }

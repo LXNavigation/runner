@@ -65,14 +65,18 @@ async fn execute_commands(config: Config, tx: Sender<TuiEvent>) -> Result<Vec<()
                 tx.clone(),
                 id,
             ))),
-            CommandMode::RunOnceAndWait => run_once(command, config.crash_path.clone(), tx.clone(), id).await?,
+            CommandMode::RunOnceAndWait => {
+                run_once(command, config.crash_path.clone(), tx.clone(), id).await?
+            }
             CommandMode::RunUntilSuccess => futures.push(task::spawn(run_until_success(
                 command,
                 config.crash_path.clone(),
                 tx.clone(),
                 id,
             ))),
-            CommandMode::RunUntilSuccessAndWait => run_until_success(command, config.crash_path.clone(), tx.clone(), id).await?,
+            CommandMode::RunUntilSuccessAndWait => {
+                run_until_success(command, config.crash_path.clone(), tx.clone(), id).await?
+            }
             CommandMode::KeepAlive => futures.push(task::spawn(run_keep_alive(
                 command,
                 config.crash_path.clone(),
@@ -81,8 +85,10 @@ async fn execute_commands(config: Config, tx: Sender<TuiEvent>) -> Result<Vec<()
             ))),
         };
     }
-    join_all(futures).await.into_iter().collect::<Result<Vec<()>>>()
-
+    join_all(futures)
+        .await
+        .into_iter()
+        .collect::<Result<Vec<()>>>()
 }
 
 // run once
