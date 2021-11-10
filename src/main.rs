@@ -42,7 +42,7 @@ fn main() -> Result<()> {
 fn parse_args() -> Result<String> {
     App::new("Runner")
         .version(crate_version!())
-        .author("Everdream <kyoko.everdream@protonmail.com>")
+        .author("Jurij Robba <jurij.robba@lxnavigation.com>")
         .about("Runner and monitoring application")
         .arg(
             Arg::with_name("config")
