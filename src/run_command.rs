@@ -20,7 +20,9 @@ use chrono::{DateTime, Utc};
 use subprocess::{ExitStatus, Popen, PopenConfig, Redirection};
 
 use crate::{
-    command_config::CommandConfig, monitor_stdout::LogT, runner_error::RunnerError,
+    command_config::CommandConfig,
+    monitor_stdout::LogT,
+    runner_error::{Result, RunnerError},
     tui_state::TuiEvent,
 };
 
@@ -30,7 +32,7 @@ pub(crate) async fn run_command(
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,
-) -> Result<(), RunnerError> {
+) -> Result<()> {
     tx.try_send(TuiEvent::CommandStarted(id))?;
     let (mut process, start) = run(&config.command, &config.args)?;
     let process_folder = format!(
@@ -76,7 +78,7 @@ pub(crate) async fn run_command(
 }
 
 // run detached with stdout and stderr piped
-fn run(command: &str, args: &[String]) -> Result<(Popen, DateTime<Utc>), RunnerError> {
+fn run(command: &str, args: &[String]) -> Result<(Popen, DateTime<Utc>)> {
     Ok((
         Popen::create(
             &create_command(command, args),

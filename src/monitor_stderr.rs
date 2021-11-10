@@ -23,7 +23,7 @@ use async_std::{
 };
 use chrono::Utc;
 
-use crate::{runner_error::RunnerError, tui_state::TuiEvent};
+use crate::{runner_error::Result, tui_state::TuiEvent};
 
 // runs another thread to monitor standard err. all outputs are stored in stderr.txt file in folder
 pub(crate) async fn monitor_stderr(
@@ -31,7 +31,7 @@ pub(crate) async fn monitor_stderr(
     stderr: File,
     tx: Sender<TuiEvent>,
     id: usize,
-) -> Result<(), RunnerError> {
+) -> Result<()> {
     let mut lines = BufReader::new(stderr).lines();
     while let Some(line) = lines.next().await {
         let line = line?;
@@ -42,7 +42,7 @@ pub(crate) async fn monitor_stderr(
 }
 
 // appends line to appropriate error file
-async fn append_to_file(err_path: String, err_string: String) -> Result<(), RunnerError> {
+async fn append_to_file(err_path: String, err_string: String) -> Result<()> {
     std::fs::create_dir_all(&err_path)?;
     let mut file = OpenOptions::new()
         .create(true)
