@@ -23,14 +23,14 @@ use crate::{command_config::CommandConfig, monitor_stdout::LogT, tui_state::TuiE
 
 // runs command, starting stdout and stderr monitoring
 pub(crate) async fn run_command(
-    config: CommandConfig,
+    config: &CommandConfig,
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,
 ) -> Result<(), ExitStatus> {
     tx.try_send(TuiEvent::CommandStarted(id))
         .expect("unbound channel should never be full");
-    let (mut process, start) = run(config.command, config.args);
+    let (mut process, start) = run(&config.command, &config.args);
     let process_folder = format!(
         "{}/{}-{}",
         error_path,
@@ -40,7 +40,7 @@ pub(crate) async fn run_command(
 
     task::spawn(crate::monitor_stderr::monitor_stderr(
         process_folder.clone(),
-        process.stderr.take().unwrap(),
+        process.stderr.take().unwrap().into(),
         tx.clone(),
         id,
     ));
@@ -48,10 +48,10 @@ pub(crate) async fn run_command(
     let mut buffer = LogT::with_capacity(config.stdout_history);
     crate::monitor_stdout::monitor_stdout(
         &mut buffer,
-        process.stdout.take().unwrap(),
+        process.stdout.take().unwrap().into(),
         tx.clone(),
         id,
-    );
+    ).await;
 
     let exit_status = process
         .wait()
@@ -66,7 +66,7 @@ pub(crate) async fn run_command(
 }
 
 // run detached with stdout and stderr piped
-fn run(command: String, args: Vec<String>) -> (Popen, DateTime<Utc>) {
+fn run(command: &str, args: &Vec<String>) -> (Popen, DateTime<Utc>) {
     (
         Popen::create(
             &create_command(command, args),
@@ -83,9 +83,12 @@ fn run(command: String, args: Vec<String>) -> (Popen, DateTime<Utc>) {
 }
 
 // created full command array from command and arguments
-fn create_command(command: String, mut args: Vec<String>) -> Vec<String> {
-    args.insert(0, command);
-    args
+fn create_command<'a>(command: &'a str, args: &'a Vec<String>) -> Vec<&'a str> {
+    let mut res = vec![command];
+    for arg in args.iter() {
+        res.push(arg);
+    }
+    res
 }
 
 #[cfg(test)]
@@ -95,8 +98,8 @@ mod tests {
 
     #[test]
     fn test_create_command() {
-        let command = String::from("test");
+        let command = "test";
         let args = Vec::new();
-        assert_eq!(create_command(command, args), [String::from("test")]);
+        assert_eq!(create_command(command, &args), [String::from("test")]);
     }
 }

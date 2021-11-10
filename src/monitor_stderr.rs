@@ -15,13 +15,10 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use crate::tui_state::TuiEvent;
-use async_std::channel::Sender;
+use async_std::{fs::OpenOptions, prelude::*};
+use crate::{runner_error::RunnerError, tui_state::TuiEvent};
+use async_std::{channel::Sender, fs::File, io::BufReader};
 use chrono::Utc;
-use std::{
-    fs::{File, OpenOptions},
-    io::{BufRead, BufReader, Write},
-};
 
 // runs another thread to monitor standard err. all outputs are stored in stderr.txt file in folder
 pub(crate) async fn monitor_stderr(
@@ -29,32 +26,26 @@ pub(crate) async fn monitor_stderr(
     stderr: File,
     tx: Sender<TuiEvent>,
     id: usize,
-) {
-    let reader = BufReader::new(stderr);
-    for line in reader.lines() {
-        match line {
-            Ok(line) => {
-                append_to_file(err_path.clone(), line.clone());
-                tx.try_send(TuiEvent::NewStderrMessage(id, line))
-                    .expect("unbound channel should never be full");
-            }
-            Err(err) => {
-                eprintln!("quitting sterr monitoring because of {}", err);
-                return;
-            }
-        }
+) -> Result<(), RunnerError> {
+    let mut lines = BufReader::new(stderr).lines();
+    while let Some(line) = lines.next().await {
+        let line = line?;
+        append_to_file(err_path.clone(), line.clone()).await?;
+        tx.try_send(TuiEvent::NewStderrMessage(id, line))
+            .expect("unbound channel should never be full");
     }
+    Ok(())
 }
 
 // appends line to appropriate error file
-fn append_to_file(err_path: String, err_string: String) {
+async fn append_to_file(err_path: String, err_string: String) -> Result<(), RunnerError> {
     std::fs::create_dir_all(&err_path).expect("Could not create crash path, aborting...");
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(err_path + "/stderr.txt")
+        .open(err_path + "/stderr.txt").await
         .unwrap();
 
-    writeln!(file, "{} | {}", Utc::now().format("%H:%M:%S"), err_string)
-        .expect("could not write to stderr file");
+    file.write_all(format!("{} | {}\n", Utc::now().format("%H:%M:%S"), err_string).as_bytes()).await?;
+    Ok(())
 }

@@ -20,16 +20,19 @@ mod config;
 mod monitor_stderr;
 mod monitor_stdout;
 mod run_command;
+mod runner_error;
 mod runner;
 mod tui;
 mod tui_state;
 
+use async_std::task;
 use clap::{crate_version, App, Arg};
+use runner_error::RunnerError;
 
 // main function
-fn main() {
+fn main() -> Result<(), RunnerError> {
     let config = parse_args();
-    runner::run(config);
+    task::block_on(runner::run(config))
 }
 
 // parse arguments using clap

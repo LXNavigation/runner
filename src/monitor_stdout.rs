@@ -15,13 +15,11 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use async_std::channel::Sender;
+use async_std::prelude::*;
+use async_std::{channel::Sender, fs::File, io::BufReader};
 use chrono::{DateTime, Utc};
 use circular_queue::CircularQueue;
-use std::{
-    fs::{File, OpenOptions},
-    io::{BufRead, BufReader, Write},
-};
+
 
 use crate::tui_state::TuiEvent;
 
@@ -29,9 +27,9 @@ use crate::tui_state::TuiEvent;
 pub(crate) type LogT = CircularQueue<(DateTime<Utc>, String)>;
 
 // monitors std in parent thread. returns only when command exits
-pub(crate) fn monitor_stdout(buffer: &mut LogT, stdout: File, tx: Sender<TuiEvent>, id: usize) {
-    let reader = BufReader::new(stdout);
-    for line in reader.lines() {
+pub(crate) async fn monitor_stdout(buffer: &mut LogT, stdout: File, tx: Sender<TuiEvent>, id: usize) {
+    let mut lines = BufReader::new(stdout).lines();
+    while let Some(line)= lines.next().await {
         match line {
             Ok(line) => {
                 buffer.push((Utc::now(), line.clone()));
