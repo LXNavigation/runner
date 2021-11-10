@@ -32,18 +32,21 @@ pub(crate) enum ConfigError {
     UnsupportedSystem(TryFromIntError),
 }
 
+// IO error conversion
 impl std::convert::From<std::io::Error> for ConfigError {
     fn from(io_error: std::io::Error) -> Self {
         ConfigError::FileOpenError(io_error)
     }
 }
 
+// conversion error conversion
 impl std::convert::From<TryFromIntError> for ConfigError {
     fn from(from_int_error: TryFromIntError) -> Self {
         ConfigError::UnsupportedSystem(from_int_error)
     }
 }
 
+// json error conversion
 impl std::convert::From<serde_json::Error> for ConfigError {
     fn from(json_error: serde_json::Error) -> Self {
         ConfigError::FileSerializationError(json_error)

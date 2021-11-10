@@ -21,6 +21,7 @@ use crate::config_error::ConfigError;
 
 pub(crate) type Result<T> = std::result::Result<T, RunnerError>;
 
+// Top level error for entire application
 #[derive(Debug)]
 pub(crate) enum RunnerError {
     MissingConfiguration,
@@ -33,24 +34,28 @@ pub(crate) enum RunnerError {
     CannotGetStdout,
 }
 
+// configuration error conversion
 impl std::convert::From<ConfigError> for RunnerError {
     fn from(config_error: ConfigError) -> Self {
         RunnerError::Configuration(config_error)
     }
 }
 
+// io error conversion
 impl std::convert::From<std::io::Error> for RunnerError {
     fn from(file_error: std::io::Error) -> Self {
         RunnerError::FileSystem(file_error)
     }
 }
 
+// process error conversion
 impl std::convert::From<PopenError> for RunnerError {
     fn from(process_error: PopenError) -> Self {
         RunnerError::Process(process_error)
     }
 }
 
+// channel error conversion
 impl std::convert::From<async_std::channel::TrySendError<crate::tui_state::TuiEvent>>
     for RunnerError
 {

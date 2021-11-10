@@ -48,14 +48,13 @@ pub(crate) async fn run(config: String) -> Result<()> {
     std::fs::create_dir_all(&config.crash_path)?;
 
     // execute all commands, saving handles
-    let _ = execute_commands(config, tx).await;
+    execute_commands(config, tx).await?;
 
     tui_handle.await
 }
 
 // executes command based on mode
-async fn execute_commands(config: Config, tx: Sender<TuiEvent>) -> Vec<Result<()>> {
-    let mut results = Vec::new();
+async fn execute_commands(config: Config, tx: Sender<TuiEvent>) -> Result<Vec<()>> {
     let mut futures = Vec::new();
 
     for (id, command) in config.commands.into_iter().enumerate() {
@@ -66,17 +65,14 @@ async fn execute_commands(config: Config, tx: Sender<TuiEvent>) -> Vec<Result<()
                 tx.clone(),
                 id,
             ))),
-            CommandMode::RunOnceAndWait => {
-                results.push(run_once(command, config.crash_path.clone(), tx.clone(), id).await)
-            }
+            CommandMode::RunOnceAndWait => run_once(command, config.crash_path.clone(), tx.clone(), id).await?,
             CommandMode::RunUntilSuccess => futures.push(task::spawn(run_until_success(
                 command,
                 config.crash_path.clone(),
                 tx.clone(),
                 id,
             ))),
-            CommandMode::RunUntilSuccessAndWait => results
-                .push(run_until_success(command, config.crash_path.clone(), tx.clone(), id).await),
+            CommandMode::RunUntilSuccessAndWait => run_until_success(command, config.crash_path.clone(), tx.clone(), id).await?,
             CommandMode::KeepAlive => futures.push(task::spawn(run_keep_alive(
                 command,
                 config.crash_path.clone(),
@@ -85,8 +81,8 @@ async fn execute_commands(config: Config, tx: Sender<TuiEvent>) -> Vec<Result<()
             ))),
         };
     }
-    results.append(&mut join_all(futures).await);
-    results
+    join_all(futures).await.into_iter().collect::<Result<Vec<()>>>()
+
 }
 
 // run once
