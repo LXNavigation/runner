@@ -15,44 +15,9 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use std::num::TryFromIntError;
-
 use clap::crate_version;
 
-use crate::command_config::CommandConfig;
-
-// Configuration error. All possible errors that can happen during the parsing of configuration
-#[derive(Debug)]
-pub(crate) enum ConfigError {
-    FileOpenError(std::io::Error),
-    FileSerializationError(serde_json::error::Error),
-    MissingApplicationName,
-    WrongApplicationName(String),
-    MissingVersion,
-    WrongVersion(String),
-    MissingCommandsArray,
-    WrongCommandsFormat,
-    BadCommandConfig(String, String),
-    UnsupportedSystem(TryFromIntError),
-}
-
-impl std::convert::From<std::io::Error> for ConfigError {
-    fn from(io_error: std::io::Error) -> Self {
-        ConfigError::FileOpenError(io_error)
-    }
-}
-
-impl std::convert::From<TryFromIntError> for ConfigError {
-    fn from(from_int_error: TryFromIntError) -> Self {
-        ConfigError::UnsupportedSystem(from_int_error)
-    }
-}
-
-impl std::convert::From<serde_json::Error> for ConfigError {
-    fn from(json_error: serde_json::Error) -> Self {
-        ConfigError::FileSerializationError(json_error)
-    }
-}
+use crate::{command_config::CommandConfig, config_error::ConfigError};
 
 // All config data parsed out
 #[derive(Debug)]

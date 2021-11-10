@@ -17,30 +17,32 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 mod command_config;
 mod config;
+mod config_error;
 mod monitor_stderr;
 mod monitor_stdout;
 mod run_command;
-mod runner_error;
 mod runner;
+mod runner_error;
 mod tui;
 mod tui_state;
 
 use async_std::task;
 use clap::{crate_version, App, Arg};
-use runner_error::RunnerError;
+
+use runner_error::{Result, RunnerError};
 
 // main function
-fn main() -> Result<(), RunnerError> {
-    let config = parse_args();
+fn main() -> Result<()> {
+    let config = parse_args()?;
     task::block_on(runner::run(config))
 }
 
 // parse arguments using clap
 // runner takes one mandatory argument, path to a config file
-fn parse_args() -> String {
+fn parse_args() -> Result<String> {
     App::new("Runner")
         .version(crate_version!())
-        .author("Jurij R. <jurij.robba@vernocte.org>")
+        .author("Everdream <kyoko.everdream@protonmail.com>")
         .about("Runner and monitoring application")
         .arg(
             Arg::with_name("config")
@@ -53,6 +55,6 @@ fn parse_args() -> String {
         )
         .get_matches()
         .value_of("config")
-        .expect("no config file provided, quitting")
-        .to_owned()
+        .ok_or(RunnerError::MissingConfiguration)
+        .map(|val| val.to_owned())
 }

@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 use std::{num::TryFromIntError, path::Path};
 
-use crate::config::ConfigError;
+use crate::config_error::ConfigError;
 
 // default number of lines to store for stdout history
 const DEFAULT_HISTORY: usize = 1000usize;
@@ -75,7 +75,7 @@ impl CommandConfig {
             stdout_history: CommandConfig::parse_history(json)?,
             mode: CommandConfig::parse_mode(json)?,
             name: CommandConfig::parse_name(json)
-                .unwrap_or_else(|| CommandConfig::get_name(&command)),
+                .map_or_else(|| CommandConfig::get_name(&command), Ok)?,
         })
     }
 
@@ -90,11 +90,10 @@ impl CommandConfig {
             .to_owned())
     }
 
-    // parses command arguments. This field must be present but can be empty array
+    // parses command arguments. This field is optional
     fn parse_args(json: &serde_json::Value) -> Result<Vec<String>, ConfigError> {
         json.get("args").map_or(Ok(Vec::new()), |val| {
-            Ok(val
-                .as_array()
+            val.as_array()
                 .ok_or_else(|| {
                     ConfigError::BadCommandConfig(String::from("args"), json.to_string())
                 })?
@@ -104,10 +103,9 @@ impl CommandConfig {
                         .ok_or_else(|| {
                             ConfigError::BadCommandConfig(String::from("args"), json.to_string())
                         })
-                        .unwrap()
-                        .to_owned()
+                        .map(|val| val.to_owned())
                 })
-                .collect::<Vec<String>>())
+                .collect::<Result<Vec<String>, ConfigError>>()
         })
     }
 
@@ -160,13 +158,17 @@ impl CommandConfig {
     }
 
     // get name from command. should extract file name from executable path
-    fn get_name(command: &str) -> String {
-        Path::new(&command)
+    fn get_name(command: &str) -> Result<String, ConfigError> {
+        Ok(Path::new(&command)
             .file_stem()
-            .unwrap_or_else(|| panic!("'{}' is not a valid command!", &command))
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(String::from("command"), command.to_owned())
+            })?
             .to_str()
-            .unwrap()
-            .to_owned()
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(String::from("command"), command.to_owned())
+            })?
+            .to_owned())
     }
 }
 
@@ -212,19 +214,19 @@ mod tests {
     #[test]
     fn test_get_name() {
         assert_eq!(
-            CommandConfig::get_name(&String::from("ls")),
+            CommandConfig::get_name(&String::from("ls")).unwrap(),
             String::from("ls")
         );
         assert_eq!(
-            CommandConfig::get_name(&String::from("test.exe")),
+            CommandConfig::get_name(&String::from("test.exe")).unwrap(),
             String::from("test")
         );
         assert_eq!(
-            CommandConfig::get_name(&String::from("path/test.exe")),
+            CommandConfig::get_name(&String::from("path/test.exe")).unwrap(),
             String::from("test")
         );
         assert_eq!(
-            CommandConfig::get_name(&String::from("path/test")),
+            CommandConfig::get_name(&String::from("path/test")).unwrap(),
             String::from("test")
         );
     }

@@ -16,6 +16,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 use std::collections::VecDeque;
+
 use termion::event::Key;
 
 // severity of messages for display purposes

@@ -15,10 +15,15 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use async_std::{fs::OpenOptions, prelude::*};
-use crate::{runner_error::RunnerError, tui_state::TuiEvent};
-use async_std::{channel::Sender, fs::File, io::BufReader};
+use async_std::{
+    channel::Sender,
+    fs::{File, OpenOptions},
+    io::BufReader,
+    prelude::*,
+};
 use chrono::Utc;
+
+use crate::{runner_error::RunnerError, tui_state::TuiEvent};
 
 // runs another thread to monitor standard err. all outputs are stored in stderr.txt file in folder
 pub(crate) async fn monitor_stderr(
@@ -31,21 +36,21 @@ pub(crate) async fn monitor_stderr(
     while let Some(line) = lines.next().await {
         let line = line?;
         append_to_file(err_path.clone(), line.clone()).await?;
-        tx.try_send(TuiEvent::NewStderrMessage(id, line))
-            .expect("unbound channel should never be full");
+        tx.try_send(TuiEvent::NewStderrMessage(id, line))?;
     }
     Ok(())
 }
 
 // appends line to appropriate error file
 async fn append_to_file(err_path: String, err_string: String) -> Result<(), RunnerError> {
-    std::fs::create_dir_all(&err_path).expect("Could not create crash path, aborting...");
+    std::fs::create_dir_all(&err_path)?;
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(err_path + "/stderr.txt").await
-        .unwrap();
+        .open(err_path + "/stderr.txt")
+        .await?;
 
-    file.write_all(format!("{} | {}\n", Utc::now().format("%H:%M:%S"), err_string).as_bytes()).await?;
+    file.write_all(format!("{} | {}\n", Utc::now().format("%H:%M:%S"), err_string).as_bytes())
+        .await?;
     Ok(())
 }
