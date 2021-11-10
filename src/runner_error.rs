@@ -15,22 +15,46 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use crate::config::ConfigError;
+use subprocess::PopenError;
+
+use crate::config_error::ConfigError;
+
+pub(crate) type Result<T> = std::result::Result<T, RunnerError>;
 
 #[derive(Debug)]
 pub(crate) enum RunnerError {
-    ConfigurationError(ConfigError),
-    FileSystemError(std::io::Error),
+    MissingConfiguration,
+    Configuration(ConfigError),
+    FileSystem(std::io::Error),
+    Exit(subprocess::ExitStatus),
+    Process(PopenError),
+    Channel(async_std::channel::TrySendError<crate::tui_state::TuiEvent>),
+    CannotGetStderr,
+    CannotGetStdout,
 }
 
 impl std::convert::From<ConfigError> for RunnerError {
     fn from(config_error: ConfigError) -> Self {
-        RunnerError::ConfigurationError(config_error)
+        RunnerError::Configuration(config_error)
     }
 }
 
 impl std::convert::From<std::io::Error> for RunnerError {
     fn from(file_error: std::io::Error) -> Self {
-        RunnerError::FileSystemError(file_error)
+        RunnerError::FileSystem(file_error)
+    }
+}
+
+impl std::convert::From<PopenError> for RunnerError {
+    fn from(process_error: PopenError) -> Self {
+        RunnerError::Process(process_error)
+    }
+}
+
+impl std::convert::From<async_std::channel::TrySendError<crate::tui_state::TuiEvent>>
+    for RunnerError
+{
+    fn from(channel_error: async_std::channel::TrySendError<crate::tui_state::TuiEvent>) -> Self {
+        RunnerError::Channel(channel_error)
     }
 }

@@ -15,15 +15,21 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+use async_std::{
+    channel::{self, Sender},
+    task,
+};
 use futures::future::join_all;
 
-use async_std::{channel::{self, Sender}, task};
-use subprocess::ExitStatus;
-
-use crate::{command_config::{CommandConfig, CommandMode}, config::Config, runner_error::RunnerError, tui_state::TuiEvent};
+use crate::{
+    command_config::{CommandConfig, CommandMode},
+    config::Config,
+    runner_error::Result,
+    tui_state::TuiEvent,
+};
 
 // main run called from main function
-pub(crate) async fn run(config: String) -> Result<(), RunnerError> {
+pub(crate) async fn run(config: String) -> Result<()> {
     // parse config file
     let config = Config::create(config)?;
 
@@ -36,37 +42,51 @@ pub(crate) async fn run(config: String) -> Result<(), RunnerError> {
             .iter()
             .map(|command| command.name.clone())
             .collect(),
-    ))
-    .expect("unbound channel should never be full");
+    ))?;
 
     //ensure error folder exists
-    std::fs::create_dir_all(&config.crash_path).expect("Could not create crash path, aborting...");
+    std::fs::create_dir_all(&config.crash_path)?;
 
     // execute all commands, saving handles
     let _ = execute_commands(config, tx).await;
 
-    tui_handle.await;
-    Ok(())
+    tui_handle.await
 }
 
 // executes command based on mode
-async fn execute_commands(
-    config: Config,
-    tx: Sender<TuiEvent>
-) -> Vec<Result<(), ExitStatus>> {
+async fn execute_commands(config: Config, tx: Sender<TuiEvent>) -> Vec<Result<()>> {
     let mut results = Vec::new();
     let mut futures = Vec::new();
 
     for (id, command) in config.commands.into_iter().enumerate() {
         match command.mode {
-            CommandMode::RunOnce => futures.push(task::spawn(run_once(command, config.crash_path.clone(), tx.clone(), id))),
-            CommandMode::RunOnceAndWait => results.push(run_once(command, config.crash_path.clone(), tx.clone(), id).await),
-            CommandMode::RunUntilSuccess => futures.push(task::spawn(run_until_success(command, config.crash_path.clone(), tx.clone(), id))),
-            CommandMode::RunUntilSuccessAndWait => results.push(run_until_success(command, config.crash_path.clone(), tx.clone(), id).await),
-            CommandMode::KeepAlive => futures.push(task::spawn(run_keep_alive(command, config.crash_path.clone(), tx.clone(), id))),
+            CommandMode::RunOnce => futures.push(task::spawn(run_once(
+                command,
+                config.crash_path.clone(),
+                tx.clone(),
+                id,
+            ))),
+            CommandMode::RunOnceAndWait => {
+                results.push(run_once(command, config.crash_path.clone(), tx.clone(), id).await)
+            }
+            CommandMode::RunUntilSuccess => futures.push(task::spawn(run_until_success(
+                command,
+                config.crash_path.clone(),
+                tx.clone(),
+                id,
+            ))),
+            CommandMode::RunUntilSuccessAndWait => results
+                .push(run_until_success(command, config.crash_path.clone(), tx.clone(), id).await),
+            CommandMode::KeepAlive => futures.push(task::spawn(run_keep_alive(
+                command,
+                config.crash_path.clone(),
+                tx.clone(),
+                id,
+            ))),
         };
     }
-    [results, join_all(futures).await].concat()
+    results.append(&mut join_all(futures).await);
+    results
 }
 
 // run once
@@ -75,8 +95,7 @@ async fn run_once(
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,
-) -> Result<(), ExitStatus> {
-    
+) -> Result<()> {
     crate::run_command::run_command(&command, error_path, tx, id).await
 }
 
@@ -86,14 +105,12 @@ async fn run_until_success(
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,
-) -> Result<(), ExitStatus> {
-    
+) -> Result<()> {
     while crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id)
         .await
         .is_err()
     {}
     Ok(())
-
 }
 
 // keep alive, ignoring exit codes
@@ -102,15 +119,8 @@ async fn run_keep_alive(
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,
-) -> Result<(), ExitStatus> {
-
+) -> Result<()> {
     loop {
-        let _ = crate::run_command::run_command(
-            &command,
-            error_path.clone(),
-            tx.clone(),
-            id,
-        )
-        .await;
+        let _ = crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id).await;
     }
 }

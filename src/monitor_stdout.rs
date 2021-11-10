@@ -15,39 +15,53 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use async_std::prelude::*;
-use async_std::{channel::Sender, fs::File, io::BufReader};
+use async_std::{
+    channel::Sender,
+    fs::{File, OpenOptions},
+    io::BufReader,
+    prelude::*,
+};
 use chrono::{DateTime, Utc};
 use circular_queue::CircularQueue;
 
-
-use crate::tui_state::TuiEvent;
+use crate::{runner_error::Result, tui_state::TuiEvent};
 
 // log type for stderr
 pub(crate) type LogT = CircularQueue<(DateTime<Utc>, String)>;
 
 // monitors std in parent thread. returns only when command exits
-pub(crate) async fn monitor_stdout(buffer: &mut LogT, stdout: File, tx: Sender<TuiEvent>, id: usize) {
+pub(crate) async fn monitor_stdout(
+    buffer: &mut LogT,
+    stdout: File,
+    tx: Sender<TuiEvent>,
+    id: usize,
+) -> Result<()> {
     let mut lines = BufReader::new(stdout).lines();
-    while let Some(line)= lines.next().await {
-        match line {
-            Ok(line) => {
-                buffer.push((Utc::now(), line.clone()));
-                tx.try_send(TuiEvent::NewStdoutMessage(id, line))
-                    .expect("unbound channel should never be full");
-            }
-            Err(err) => {
-                eprintln!("quitting std out monitoring because of {}", err);
-                return;
-            }
-        };
+    while let Some(line) = lines.next().await {
+        let line = line?;
+        buffer.push((Utc::now(), line.clone()));
+        tx.try_send(TuiEvent::NewStdoutMessage(id, line))?;
     }
+    Ok(())
 }
 
 // saves buffer to a stdout.txt should only be called on error
-pub(crate) fn save_to_file(buffer: LogT, err_path: String) {
+pub(crate) async fn save_to_file(buffer: LogT, err_path: String) -> Result<()> {
     if buffer.is_empty() {
-        return;
+        return Ok(());
     }
-    std::fs::create_dir_all(&err_path).expect("Could not create crash path, aborting...");
+    std::fs::create_dir_all(&err_path)?;
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(err_path + "/stdout.txt")
+        .await?;
+
+    for line in buffer.iter() {
+        file.write(format!("{} | {}\n", line.0.format("%H:%M:%S"), line.1).as_bytes())
+            .await?;
+    }
+
+    Ok(())
 }

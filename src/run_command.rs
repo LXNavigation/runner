@@ -19,7 +19,10 @@ use async_std::{channel::Sender, task};
 use chrono::{DateTime, Utc};
 use subprocess::{ExitStatus, Popen, PopenConfig, Redirection};
 
-use crate::{command_config::CommandConfig, monitor_stdout::LogT, tui_state::TuiEvent};
+use crate::{
+    command_config::CommandConfig, monitor_stdout::LogT, runner_error::RunnerError,
+    tui_state::TuiEvent,
+};
 
 // runs command, starting stdout and stderr monitoring
 pub(crate) async fn run_command(
@@ -27,10 +30,9 @@ pub(crate) async fn run_command(
     error_path: String,
     tx: Sender<TuiEvent>,
     id: usize,
-) -> Result<(), ExitStatus> {
-    tx.try_send(TuiEvent::CommandStarted(id))
-        .expect("unbound channel should never be full");
-    let (mut process, start) = run(&config.command, &config.args);
+) -> Result<(), RunnerError> {
+    tx.try_send(TuiEvent::CommandStarted(id))?;
+    let (mut process, start) = run(&config.command, &config.args)?;
     let process_folder = format!(
         "{}/{}-{}",
         error_path,
@@ -38,9 +40,13 @@ pub(crate) async fn run_command(
         start.format("%Y-%m-%d_%H:%M:%S")
     );
 
-    task::spawn(crate::monitor_stderr::monitor_stderr(
+    let stderr_handle = task::spawn(crate::monitor_stderr::monitor_stderr(
         process_folder.clone(),
-        process.stderr.take().unwrap().into(),
+        process
+            .stderr
+            .take()
+            .ok_or(RunnerError::CannotGetStderr)?
+            .into(),
         tx.clone(),
         id,
     ));
@@ -48,26 +54,30 @@ pub(crate) async fn run_command(
     let mut buffer = LogT::with_capacity(config.stdout_history);
     crate::monitor_stdout::monitor_stdout(
         &mut buffer,
-        process.stdout.take().unwrap().into(),
+        process
+            .stdout
+            .take()
+            .ok_or(RunnerError::CannotGetStdout)?
+            .into(),
         tx.clone(),
         id,
-    ).await;
+    )
+    .await?;
 
-    let exit_status = process
-        .wait()
-        .expect("Process owned by runner killed from outside");
-    tx.try_send(TuiEvent::CommandEnded(id))
-        .expect("unbound channel should never be full");
+    stderr_handle.await?;
+
+    let exit_status = process.wait()?;
+    tx.try_send(TuiEvent::CommandEnded(id))?;
     if exit_status != ExitStatus::Exited(0u32) {
-        crate::monitor_stdout::save_to_file(buffer, process_folder);
-        return Err(exit_status);
+        crate::monitor_stdout::save_to_file(buffer, process_folder).await?;
+        return Err(RunnerError::Exit(exit_status));
     }
     Ok(())
 }
 
 // run detached with stdout and stderr piped
-fn run(command: &str, args: &Vec<String>) -> (Popen, DateTime<Utc>) {
-    (
+fn run(command: &str, args: &[String]) -> Result<(Popen, DateTime<Utc>), RunnerError> {
+    Ok((
         Popen::create(
             &create_command(command, args),
             PopenConfig {
@@ -76,14 +86,13 @@ fn run(command: &str, args: &Vec<String>) -> (Popen, DateTime<Utc>) {
                 detached: true,
                 ..Default::default()
             },
-        )
-        .unwrap(),
+        )?,
         Utc::now(),
-    )
+    ))
 }
 
 // created full command array from command and arguments
-fn create_command<'a>(command: &'a str, args: &'a Vec<String>) -> Vec<&'a str> {
+fn create_command<'a>(command: &'a str, args: &'a [String]) -> Vec<&'a str> {
     let mut res = vec![command];
     for arg in args.iter() {
         res.push(arg);
