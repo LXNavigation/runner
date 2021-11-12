@@ -45,9 +45,8 @@ pub(crate) enum CommandMode {
 }
 
 // single app configuration
-//
 // this struct holds all information needed to successfully run a process
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct CommandConfig {
     // command to execute
     pub(crate) command: String,
@@ -63,6 +62,16 @@ pub(crate) struct CommandConfig {
 
     // name given to application
     pub(crate) name: String,
+
+    pub(crate) backup_strategy: Option<BackupStrategy>,
+}
+
+#[derive(Debug)]
+pub(crate) struct BackupStrategy {
+    pub(crate) times: u64,
+    pub(crate) period: chrono::Duration,
+    pub(crate) script: Option<String>,
+    pub(crate) safe_mode: Option<Vec<String>>,
 }
 
 impl CommandConfig {
@@ -76,6 +85,7 @@ impl CommandConfig {
             mode: CommandConfig::parse_mode(json)?,
             name: CommandConfig::parse_name(json)
                 .map_or_else(|| CommandConfig::get_name(&command), Ok)?,
+            backup_strategy: CommandConfig::parse_backup_strategy(json)?,
         })
     }
 
@@ -170,6 +180,124 @@ impl CommandConfig {
             })?
             .to_owned())
     }
+
+    fn parse_backup_strategy(
+        json: &serde_json::Value,
+    ) -> Result<Option<BackupStrategy>, ConfigError> {
+        let json = match json.get("backup strategy") {
+            Some(json) => json,
+            None => return Ok(None),
+        };
+
+        Ok(Some(BackupStrategy {
+            times: CommandConfig::parse_backup_strategy_times(json)?,
+            period: CommandConfig::parse_backup_strategy_period(json)?,
+            script: CommandConfig::parse_backup_strategy_script(json)?,
+            safe_mode: CommandConfig::parse_backup_strategy_args(json)?,
+        }))
+    }
+
+    fn parse_backup_strategy_times(json: &serde_json::Value) -> Result<u64, ConfigError> {
+        json.get("times")
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(
+                    String::from("backup strategy times"),
+                    json.to_string(),
+                )
+            })?
+            .as_u64()
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(
+                    String::from("backup strategy times"),
+                    json.to_string(),
+                )
+            })
+    }
+
+    fn parse_backup_strategy_period(
+        json: &serde_json::Value,
+    ) -> Result<chrono::Duration, ConfigError> {
+        let period = json
+            .get("period")
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(
+                    String::from("backup strategy period"),
+                    json.to_string(),
+                )
+            })?
+            .as_str()
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(
+                    String::from("backup strategy period"),
+                    json.to_string(),
+                )
+            })?;
+        let number: i64 = period
+            .get(..period.len() - 1)
+            .ok_or_else(|| {
+                ConfigError::BadCommandConfig(
+                    String::from("backup strategy period"),
+                    json.to_string(),
+                )
+            })?
+            .parse()
+            .map_err(|_| {
+                ConfigError::BadCommandConfig(
+                    String::from("backup strategy period"),
+                    json.to_string(),
+                )
+            })?;
+
+        if period.ends_with("s") {
+            return Ok(chrono::Duration::seconds(number));
+        } else if period.ends_with("m") {
+            return Ok(chrono::Duration::minutes(number));
+        } else if period.ends_with("h") {
+            return Ok(chrono::Duration::hours(number));
+        } else if period.ends_with("d") {
+            return Ok(chrono::Duration::days(number));
+        } else if period.ends_with("w") {
+            return Ok(chrono::Duration::weeks(number));
+        }
+
+        Err(ConfigError::BadCommandConfig(
+            String::from("backup strategy duration"),
+            json.to_string(),
+        ))
+    }
+
+    fn parse_backup_strategy_script(json: &serde_json::Value) -> Result<Option<String>, ConfigError> {
+        json.get("script").map_or_else(
+            || Ok(None),
+            |command| {
+                Ok(Some(command
+                    .as_str()
+                    .ok_or_else(|| {
+                        ConfigError::BadCommandConfig(String::from("script"), json.to_string())
+                    })?
+                    .to_owned()))
+            },
+        )
+    }
+
+    // parses command arguments. This field is optional
+    fn parse_backup_strategy_args(json: &serde_json::Value) -> Result<Option<Vec<String>>, ConfigError> {
+        json.get("safe mode").map_or(Ok(None), |val| {
+            Ok(Some(val.as_array()
+                .ok_or_else(|| {
+                    ConfigError::BadCommandConfig(String::from("safe mode"), json.to_string())
+                })?
+                .iter()
+                .map(|e| {
+                    e.as_str()
+                        .ok_or_else(|| {
+                            ConfigError::BadCommandConfig(String::from("safe mode"), json.to_string())
+                        })
+                        .map(|val| val.to_owned())
+                })
+                .collect::<Result<Vec<String>, ConfigError>>()?))
+        })
+    }
 }
 
 #[cfg(test)]
@@ -229,5 +357,36 @@ mod tests {
             CommandConfig::get_name(&String::from("path/test")).unwrap(),
             String::from("test")
         );
+    }
+
+    #[test]
+    fn test_parse_backup_strategy() {
+        let json = json!({
+            "backup strategy": {
+                "times": 5u64,
+                "period": "1m",
+            }
+        });
+        let config = CommandConfig::parse_backup_strategy(&json).unwrap().unwrap();
+
+        assert_eq!(config.times, 5u64);
+        assert_eq!(config.period, chrono::Duration::minutes(1));
+        assert_eq!(config.safe_mode, None);
+        assert_eq!(config.script, None);
+
+        let json = json!({
+            "backup strategy": {
+                "times": 13u64,
+                "period": "125w",
+                "safe mode": ["safe", "mode"],
+                "script": "cleanup.sh"
+            }
+        });
+        let config = CommandConfig::parse_backup_strategy(&json).unwrap().unwrap();
+
+        assert_eq!(config.times, 13u64);
+        assert_eq!(config.period, chrono::Duration::weeks(125));
+        assert_eq!(config.safe_mode, Some(vec![String::from("safe"), String::from("mode")]));
+        assert_eq!(config.script, Some(String::from("cleanup.sh")));
     }
 }

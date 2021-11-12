@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+use chrono::Utc;
 use async_std::{
     channel::{self, Sender},
     task,
@@ -108,10 +109,47 @@ async fn run_until_success(
     tx: Sender<TuiEvent>,
     id: usize,
 ) -> Result<()> {
-    while crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id)
-        .await
-        .is_err()
-    {}
+    let mut crashes = Vec::new();
+    while let Err(_) = crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id).await {
+        crashes.push(Utc::now());
+        if let Some(strategy) = &command.backup_strategy {
+            let mut crash_count = 0u64;
+            for timestamp in &crashes {
+                if timestamp > &(Utc::now() - strategy.period) {
+                    crash_count += 1u64;
+                }
+                if crash_count > strategy.times {
+                    if strategy.script.is_none() && strategy.safe_mode.is_none() {
+                        // we have no handling strategy so we just give up
+                        tx.try_send(TuiEvent::NewStderrMessage(id, String::from("Crash limit reached with no handling strategy, giving up!")))?;
+                        return Ok(())
+                    }
+                    if let Some(script) = &strategy.script {
+                        let script_config = CommandConfig {
+                            command: script.to_owned(),
+                            args: Vec::new(),
+                            stdout_history: command.stdout_history,
+                            mode: CommandMode::RunOnceAndWait,
+                            name: script.to_owned(),
+                            backup_strategy: None,
+                        };
+                        run_once(script_config, error_path.clone(), tx.clone(), id).await?
+                    }
+                    if let Some(args) = &strategy.safe_mode {
+                        let script_config = CommandConfig {
+                            command: command.command.to_owned(),
+                            args: args.clone(),
+                            stdout_history: command.stdout_history,
+                            mode: CommandMode::RunOnceAndWait,
+                            name: command.name.to_owned(),
+                            backup_strategy: None,
+                        };
+                        run_once(script_config, error_path.clone(), tx.clone(), id).await?
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -122,7 +160,47 @@ async fn run_keep_alive(
     tx: Sender<TuiEvent>,
     id: usize,
 ) -> Result<()> {
+    let mut crashes = Vec::new();
     loop {
-        let _ = crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id).await;
+        if let Err(_) = crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id).await {
+            crashes.push(Utc::now());
+            if let Some(strategy) = &command.backup_strategy {
+                let mut crash_count = 0u64;
+                for timestamp in &crashes {
+                    if timestamp > &(Utc::now() - strategy.period) {
+                        crash_count += 1u64;
+                    }
+                    if crash_count > strategy.times {
+                        if strategy.script.is_none() && strategy.safe_mode.is_none() {
+                            // we have no handling strategy so we just give up
+                            tx.try_send(TuiEvent::NewStderrMessage(id, String::from("Crash limit reached with no handling strategy, giving up!")))?;
+                            return Ok(())
+                        }
+                        if let Some(script) = &strategy.script {
+                            let script_config = CommandConfig {
+                                command: script.to_owned(),
+                                args: Vec::new(),
+                                stdout_history: command.stdout_history,
+                                mode: CommandMode::RunOnceAndWait,
+                                name: script.to_owned(),
+                                backup_strategy: None,
+                            };
+                            run_once(script_config, error_path.clone(), tx.clone(), id).await?
+                        }
+                        if let Some(args) = &strategy.safe_mode {
+                            let script_config = CommandConfig {
+                                command: command.command.to_owned(),
+                                args: args.clone(),
+                                stdout_history: command.stdout_history,
+                                mode: CommandMode::RunOnceAndWait,
+                                name: command.name.to_owned(),
+                                backup_strategy: None,
+                            };
+                            run_once(script_config, error_path.clone(), tx.clone(), id).await?
+                        }
+                    }
+                }
+            }
+        }
     }
 }
