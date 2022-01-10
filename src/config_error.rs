@@ -37,7 +37,7 @@ impl std::fmt::Display for ConfigError {
         match self {
             ConfigError::FileSystemError(err) => write!(f, "File system error - {}", err),
             ConfigError::FileSerializationError(err) => {
-                write!(f, "File serilization error - {}", err)
+                write!(f, "File serialization error - {}", err)
             }
             ConfigError::MissingApplicationName => write!(f, "Missing application name!"),
             ConfigError::WrongApplicationName(name) => {
@@ -54,7 +54,7 @@ impl std::fmt::Display for ConfigError {
                 "Bad command config! Could not parse {} in {}",
                 field, config
             ),
-            ConfigError::UnsupportedSystem(_) => write!(f, "Unsuported operatign system!"),
+            ConfigError::UnsupportedSystem(_) => write!(f, "Unsupported operating system!"),
         }
     }
 }

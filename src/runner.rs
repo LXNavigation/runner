@@ -15,11 +15,11 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-use chrono::Utc;
 use async_std::{
     channel::{self, Sender},
     task,
 };
+use chrono::Utc;
 use futures::future::join_all;
 
 use crate::{
@@ -110,7 +110,10 @@ async fn run_until_success(
     id: usize,
 ) -> Result<()> {
     let mut crashes = Vec::new();
-    while let Err(_) = crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id).await {
+    while crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id)
+        .await
+        .is_err()
+    {
         crashes.push(Utc::now());
         if let Some(strategy) = &command.backup_strategy {
             let mut crash_count = 0u64;
@@ -121,8 +124,13 @@ async fn run_until_success(
                 if crash_count > strategy.times {
                     if strategy.script.is_none() && strategy.safe_mode.is_none() {
                         // we have no handling strategy so we just give up
-                        tx.try_send(TuiEvent::NewStderrMessage(id, String::from("Crash limit reached with no handling strategy, giving up!")))?;
-                        return Ok(())
+                        tx.try_send(TuiEvent::NewStderrMessage(
+                            id,
+                            String::from(
+                                "Crash limit reached with no handling strategy, giving up!",
+                            ),
+                        ))?;
+                        return Ok(());
                     }
                     if let Some(script) = &strategy.script {
                         let script_config = CommandConfig {
@@ -162,7 +170,10 @@ async fn run_keep_alive(
 ) -> Result<()> {
     let mut crashes = Vec::new();
     loop {
-        if let Err(_) = crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id).await {
+        if crate::run_command::run_command(&command, error_path.clone(), tx.clone(), id)
+            .await
+            .is_err()
+        {
             crashes.push(Utc::now());
             if let Some(strategy) = &command.backup_strategy {
                 let mut crash_count = 0u64;
@@ -173,8 +184,13 @@ async fn run_keep_alive(
                     if crash_count > strategy.times {
                         if strategy.script.is_none() && strategy.safe_mode.is_none() {
                             // we have no handling strategy so we just give up
-                            tx.try_send(TuiEvent::NewStderrMessage(id, String::from("Crash limit reached with no handling strategy, giving up!")))?;
-                            return Ok(())
+                            tx.try_send(TuiEvent::NewStderrMessage(
+                                id,
+                                String::from(
+                                    "Crash limit reached with no handling strategy, giving up!",
+                                ),
+                            ))?;
+                            return Ok(());
                         }
                         if let Some(script) = &strategy.script {
                             let script_config = CommandConfig {

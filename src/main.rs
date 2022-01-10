@@ -53,8 +53,8 @@ fn parse_args() -> Result<String> {
         .author("Jurij Robba <jurij.robba@lxnavigation.com>")
         .about("Runner and monitoring application")
         .arg(
-            Arg::with_name("config")
-                .short("c")
+            Arg::new("config")
+                .short('c')
                 .long("config")
                 .value_name("FILE")
                 .help("Sets a custom config file")
